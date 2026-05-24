@@ -33,5 +33,5 @@ createServer((request, response) => {
   });
   createReadStream(filePath).pipe(response);
 }).listen(port, "127.0.0.1", () => {
-  console.log(`LogSentry frontend listening on https://127.0.0.1:${port}`);
+  console.log(`Cerberus frontend listening on https://127.0.0.1:${port}`);
 });

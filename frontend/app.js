@@ -386,7 +386,7 @@ function openTriageConsole(alert) {
     }
     
     // Commands
-    $("triageCmdWin").textContent = report.firewall_cmd_windows || `New-NetFirewallRule -DisplayName "Block LogSentry Attacker ${alert["Source IP"]}" -Direction Inbound -Action Block -RemoteAddress ${alert["Source IP"]}`;
+    $("triageCmdWin").textContent = report.firewall_cmd_windows || `New-NetFirewallRule -DisplayName "Block Cerberus Attacker ${alert["Source IP"]}" -Direction Inbound -Action Block -RemoteAddress ${alert["Source IP"]}`;
     $("triageCmdLin").textContent = report.firewall_cmd_linux || `sudo iptables -A INPUT -s ${alert["Source IP"]} -j DROP`;
   } else {
     // Standard signature fallback state
@@ -396,7 +396,7 @@ function openTriageConsole(alert) {
       <li>Block the attacker's IP address globally at the perimeter firewall.</li>
       <li>Verify all log headers and inputs to prevent parameter tampering.</li>
     `;
-    $("triageCmdWin").textContent = `New-NetFirewallRule -DisplayName "Block LogSentry Attacker ${alert["Source IP"]}" -Direction Inbound -Action Block -RemoteAddress ${alert["Source IP"]}`;
+    $("triageCmdWin").textContent = `New-NetFirewallRule -DisplayName "Block Cerberus Attacker ${alert["Source IP"]}" -Direction Inbound -Action Block -RemoteAddress ${alert["Source IP"]}`;
     $("triageCmdLin").textContent = `sudo iptables -A INPUT -s ${alert["Source IP"]} -j DROP`;
   }
   

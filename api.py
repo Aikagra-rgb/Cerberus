@@ -32,9 +32,9 @@ from src.detection_service import DetectionService
 LEGACY_EVIDENCE_FILE = os.path.join(DATA_DIR, "hids_alerts.csv")
 
 app = FastAPI(
-    title="LogSentry API",
+    title="Cerberus API",
     version="0.4.0",
-    description="Backend API for LogSentry log ingestion, active IPS gatekeeping, and model analytics.",
+    description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
 )
 
 # Enable CORS for the local Single Page Application
@@ -294,10 +294,10 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
     if "WINDOWS" in system_os:
         cmd_args = [
             "powershell", "-NoProfile", "-Command",
-            f"New-NetFirewallRule -DisplayName 'Block LogSentry Attacker {ip}' "
+            f"New-NetFirewallRule -DisplayName 'Block Cerberus Attacker {ip}' "
             f"-Direction Inbound -Action Block -RemoteAddress {ip}"
         ]
-        cmd_display = f"New-NetFirewallRule -DisplayName 'Block LogSentry Attacker {ip}' -Direction Inbound -Action Block -RemoteAddress {ip}"
+        cmd_display = f"New-NetFirewallRule -DisplayName 'Block Cerberus Attacker {ip}' -Direction Inbound -Action Block -RemoteAddress {ip}"
     else:
         cmd_args = ["sudo", "iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"]
         cmd_display = f"sudo iptables -A INPUT -s {ip} -j DROP"

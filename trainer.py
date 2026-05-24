@@ -213,7 +213,7 @@ if __name__ == "__main__":
     all_types = list(MODEL_CONFIGS.keys())
 
     parser = argparse.ArgumentParser(
-        description="Train LogSentry HIDS AI Models (Random Forest Classifier)",
+        description="Train Cerberus HIDS AI Models (Random Forest Classifier)",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="Available model types:\n  " + "\n  ".join(
             [f"{k:15s} - {v['description']}" for k, v in MODEL_CONFIGS.items()]

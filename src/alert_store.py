@@ -334,7 +334,7 @@ def _seed_default_users(db_path):
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         if count == 0:
             # Seed ADMIN (stronger default password)
-            admin_pwd_hash, admin_salt = hash_password("LogSentry@Admin2026!")
+            admin_pwd_hash, admin_salt = hash_password("Cerberus@Admin2026!")
             conn.execute(
                 """
                 INSERT INTO users (username, password_hash, salt, role)
@@ -343,7 +343,7 @@ def _seed_default_users(db_path):
                 ("admin", admin_pwd_hash, admin_salt, "ADMIN"),
             )
             # Seed ANALYST (stronger default password)
-            analyst_pwd_hash, analyst_salt = hash_password("LogSentry@Analyst2026!")
+            analyst_pwd_hash, analyst_salt = hash_password("Cerberus@Analyst2026!")
             conn.execute(
                 """
                 INSERT INTO users (username, password_hash, salt, role)
@@ -353,8 +353,8 @@ def _seed_default_users(db_path):
             )
             conn.commit()
             print("[SECURITY] Default accounts seeded. Change passwords after first login!")
-            print("  admin    / LogSentry@Admin2026!")
-            print("  analyst  / LogSentry@Analyst2026!")
+            print("  admin    / Cerberus@Admin2026!")
+            print("  analyst  / Cerberus@Analyst2026!")
 
 
 def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):

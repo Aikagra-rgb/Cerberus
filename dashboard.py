@@ -15,7 +15,7 @@ from src.config import DATA_DIR, MODELS_DIR, MODEL_CONFIGS
 # CONFIGURATION
 # ==========================================
 LEGACY_EVIDENCE_FILE = os.path.join(DATA_DIR, "hids_alerts.csv")
-PAGE_TITLE = "LogSentry SOC"
+PAGE_TITLE = "Cerberus SOC"
 PAGE_ICON = "🛡️"
 
 # Threat severity classification
@@ -371,7 +371,7 @@ with st.sidebar:
         <div style="font-size:18px; font-weight:800; 
              background: linear-gradient(135deg, #06b6d4, #8b5cf6);
              -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-             letter-spacing: -0.5px;">LogSentry</div>
+             letter-spacing: -0.5px;">Cerberus</div>
         <div style="font-size:10px; color:#475569; font-weight:600; 
              letter-spacing:2px; text-transform:uppercase; margin-top:2px;">
              SOC DASHBOARD v5.0</div>
@@ -430,7 +430,7 @@ with st.sidebar:
 # ==========================================
 st.markdown("""
 <div class="soc-header">
-    <h1>🛡️ LogSentry Security Operations Center</h1>
+    <h1>🛡️ Cerberus Security Operations Center</h1>
     <p>Real-time hybrid intrusion detection — Signature Engine + Multi-Brain AI Classifier + File Integrity Monitor</p>
 </div>
 """, unsafe_allow_html=True)

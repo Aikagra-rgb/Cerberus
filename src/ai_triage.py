@@ -35,7 +35,7 @@ class AITriageAgent:
         mitigation checkmarks, and customized OS-level firewall scripts.
         """
         # 1. Generate customized OS-level blocking commands
-        windows_cmd = f'New-NetFirewallRule -DisplayName "Block LogSentry Attacker {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}'
+        windows_cmd = f'New-NetFirewallRule -DisplayName "Block Cerberus Attacker {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}'
         linux_cmd = f'sudo iptables -A INPUT -s {source_ip} -j DROP'
 
         # 2. Extract probability/confidence if present in details
@@ -62,7 +62,7 @@ class AITriageAgent:
         """Queries local Ollama instance for cybersecurity incident response analysis."""
         prompt = (
             f"You are an expert Security Operations Center (SOC) incident responder.\n"
-            f"Analyze this high-severity intrusion alert caught by the LogSentry IDS:\n"
+            f"Analyze this high-severity intrusion alert caught by the Cerberus IDS:\n"
             f" - Attacking IP: {source_ip}\n"
             f" - Alert Classification: {threat_type}\n"
             f" - Classifier Details: {details}\n"
