@@ -1,27 +1,27 @@
-# LogSentry Hybrid Detection Lab
+# Cerberus Hybrid Detection & Prevention Platform
 
-LogSentry is a local hybrid intrusion-detection lab that combines:
+**Cerberus** (**C**ognitive **E**ngine for **R**eal-time **B**ehavioral **E**valuation, **R**esponse & **U**nified **S**ecurity) is an active hybrid intrusion detection and prevention platform that integrates:
 
-- A signature-based detection engine
-- Multi-brain Random Forest classifiers trained on CIC-IDS2017 CSVs
+- A signature-based detection engine (30+ rules covering SQLi, XSS, RFI, Path Traversal, and common exploits)
+- Multi-brain Random Forest classifiers trained on CIC-IDS2017 flow data
 - A file integrity monitor (FIM)
-- A browser-based analyst console
+- An active IPS Gatekeeper with real-time OS-level firewall blocking (`iptables` / PowerShell Defender rules)
+- A gorgeous, centralized modern browser analyst console and Legacy Streamlit dashboard
 
-The current prototype tails demo logs from `data/`, writes alerts to SQLite,
-and loads trained models from `models/`.
+The current prototype tails demo logs from `data/`, writes alerts to SQLite, and loads trained models from `models/`.
 
 ---
 
 ## 1. Project Layout
 
 - `sentinel_engine.py` - runtime engine for signatures, AI checks, auth/web log monitoring, and FIM.
-- `api.py` - FastAPI backend for log ingestion, alert querying, and live WebSocket checks.
+- `api.py` - FastAPI backend for log ingestion, active IPS gatekeeping, alert querying, and live WebSocket checks.
 - `trainer.py` - trains Random Forest classifier pipelines for each configured CIC-IDS2017 attack family.
 - `src/config.py` - central paths, feature names, model configs, and simulation key mapping.
-- `src/feature_extractor.py` - parses injected query-string metrics into the unified 20-feature vector.
+- `src/feature_extractor.py` - parses injected query-string metrics or Apache/Nginx combined logs into the unified 20-feature vector.
 - `frontend/` - modern browser analyst console that connects to the FastAPI backend.
-- `dashboard.py` - legacy Streamlit dashboard that reads SQLite alerts and visualizes incidents.
-- `src/alert_store.py` - SQLite persistence layer for alert writes, reads, and legacy CSV import.
+- `dashboard.py` - Streamlit dashboard that reads SQLite alerts and visualizes incidents.
+- `src/alert_store.py` - SQLite persistence layer for alert writes, reads, active IPS IP reputation, and session management.
 - `data/` - CIC CSVs, demo logs, signatures, and legacy CSV alert output.
 - `models/` - trained model artifacts.
 - `sentinel.db` - SQLite alert database, created automatically at runtime.
