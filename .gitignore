@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & Caches
+.pytest_cache/
+.qodo/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Large Security Datasets (Required to bypass GitHub 100MB file limit)
+data/cic_*.csv
+data/hids_alerts.csv
+
+# SQLite Database
+sentinel.db
+
+# Log files
+*.log
+uvicorn.*
+
+# Node modules
+node_modules/
+
+# Local configuration / secrets
+ai-claude-ids-key.txt
+.env

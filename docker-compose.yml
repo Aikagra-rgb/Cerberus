@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logsentry_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount persistence data and brain models directories
+      - ./data:/app/data
+      - ./models:/app/models
+    cap_add:
+      - NET_ADMIN  # Grants required capabilities to run iptables inside the container namespace
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    container_name: logsentry_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: node server.mjs
+    restart: unless-stopped

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LogSentry SOC Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Premium Glowing Background Accents -->
+    <div class="glow-accent glow-cyan"></div>
+    <div class="glow-accent glow-purple"></div>
+
+    <!-- ==========================================
+         GLASSMORPHIC LOGIN OVERLAY
+         ========================================== -->
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <div class="brand-header">
+          <div class="brand-badge">🛡️</div>
+          <h2>LogSentry</h2>
+          <p>Security Operations Hub</p>
+        </div>
+        
+        <form id="loginForm" class="login-form">
+          <div class="input-group">
+            <label class="field-label" for="loginUser">Username</label>
+            <input id="loginUser" type="text" class="input" placeholder="Enter username" required autocomplete="username" />
+          </div>
+          
+          <div class="input-group">
+            <label class="field-label" for="loginPass">Password</label>
+            <input id="loginPass" type="password" class="input" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+
+          <div id="loginError" class="login-error"></div>
+
+          <button id="loginBtn" class="button button-primary" type="submit">Sign In</button>
+        </form>
+        <div class="login-footer">
+          Demo: <code>admin</code>/<code>admin123</code> or <code>analyst</code>/<code>analyst123</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         SLIDING AI THREAT TRIAGE CONSOLE (INCIDENT RESPONSE)
+         ========================================== -->
+    <div id="triageConsole" class="triage-console">
+      <header class="triage-header">
+        <div class="triage-brand">
+          <span class="pulse-ring">🧠</span>
+          <h3>AI Analyst Insights</h3>
+        </div>
+        <button id="closeTriageBtn" class="close-triage-btn" type="button" title="Close Panel">✕</button>
+      </header>
+
+      <main class="triage-body">
+        <section class="triage-summary-card">
+          <div class="summary-row">
+            <span class="summary-label">Target Alert</span>
+            <strong id="triageThreatType" class="critical">SQL Injection</strong>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Source IP</span>
+            <strong id="triageSourceIP" class="mono">203.0.113.77</strong>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">AI Confidence</span>
+            <strong id="triageProbability">100.0%</strong>
+          </div>
+        </section>
+
+        <!-- Threat Vector Analysis -->
+        <section class="triage-section">
+          <h4>🧠 Attack Vector Analysis</h4>
+          <div id="triageAnalysis" class="triage-content-box">
+            No threat details parsed yet. Select an alert from the incident feed.
+          </div>
+        </section>
+
+        <!-- Mitigation Action Items -->
+        <section class="triage-section">
+          <h4>🛡️ Strategic Mitigations</h4>
+          <ul id="triageMitigations" class="triage-list">
+            <li>Review query parameters for SQL escape syntax.</li>
+            <li>Enable database least privilege credentials.</li>
+          </ul>
+        </section>
+
+        <!-- OS-Level Firewall Deployment -->
+        <section class="triage-section">
+          <h4>🔥 OS-Level Block Commands</h4>
+          <p class="section-hint">Deploy this rule to drop packets at the kernel interface.</p>
+          
+          <div class="terminal-container">
+            <div class="terminal-header">
+              <span>PowerShell (Windows)</span>
+              <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText($('triageCmdWin').textContent); alert('Copied Windows command!');">Copy</button>
+            </div>
+            <pre class="terminal-body"><span class="prompt">PS&gt;</span> <code id="triageCmdWin">New-NetFirewallRule ...</code></pre>
+          </div>
+
+          <div class="terminal-container">
+            <div class="terminal-header">
+              <span>iptables (Linux / Kali)</span>
+              <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText($('triageCmdLin').textContent); alert('Copied Linux command!');">Copy</button>
+            </div>
+            <pre class="terminal-body"><span class="prompt">$</span> <code id="triageCmdLin">sudo iptables ...</code></pre>
+          </div>
+
+          <!-- Active Firewall Deploy Trigger -->
+          <div class="triage-action-block">
+            <button id="deployFirewallBtn" class="button button-primary width-100" type="button">Deploy OS Firewall Rule</button>
+            <div id="deployResult" class="deploy-note">Only Administrators can deploy firewalls</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- ==========================================
+         MAIN SOC APPLICATION CONSOLE
+         ========================================== -->
+    <div id="appShell" class="shell" style="display: none;">
+      <!-- Collapsible Sidebar -->
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">LS</div>
+          <div>
+            <div class="brand-name">LogSentry</div>
+            <div class="brand-subtitle">Security Operations</div>
+          </div>
+        </div>
+
+        <section class="control-group">
+          <label class="field-label" for="apiUrl">API Endpoint</label>
+          <input id="apiUrl" class="input" value="https://192.168.1.3:8000" />
+        </section>
+
+        <section class="control-group">
+          <label class="field-label" for="threatFilter">Threat Type</label>
+          <select id="threatFilter" class="input">
+            <option value="">All threats</option>
+          </select>
+        </section>
+
+        <section class="control-group">
+          <label class="field-label" for="severityFilter">Severity</label>
+          <select id="severityFilter" class="input">
+            <option value="">All severities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+        </section>
+
+        <section class="control-group">
+          <label class="field-label" for="refreshInterval">Auto-Refresh</label>
+          <select id="refreshInterval" class="input">
+            <option value="0">Manual</option>
+            <option value="5" selected>5 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
+        </section>
+      </aside>
+
+      <!-- Main Workspace -->
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Analyst Console</h1>
+            <p id="lastUpdated">Securing Localhost Nodes</p>
+          </div>
+          
+          <div class="topbar-actions">
+            <!-- Active User Profile Slot -->
+            <div class="user-pill">
+              <span id="userBadgeRole" class="role-badge">ANALYST</span>
+              <span id="userBadgeName" class="user-name">Guest</span>
+              <button id="logoutBtn" class="logout-btn" type="button" title="Sign Out">🚪</button>
+            </div>
+            <span id="apiStatus" class="status-pill status-muted">Checking</span>
+            <button id="refreshBtn" class="button button-secondary" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <!-- Dynamic Page Tabs Navigation -->
+        <nav class="console-tabs">
+          <button id="tab-dashboard" class="tab-button active" type="button">📊 Threat Dashboard</button>
+          <button id="tab-ingestion" class="tab-button" type="button">🔌 Log Ingestion</button>
+          <button id="tab-brains" class="tab-button" type="button">📈 Model Analytics</button>
+        </nav>
+
+        <!-- ==========================================
+             TAB 1: THREAT DASHBOARD
+             ========================================== -->
+        <div id="page-dashboard" class="tab-page">
+          <!-- KPI Cards Grid -->
+          <section class="metric-grid">
+            <article class="metric-card">
+              <span class="metric-label">Total Alerts</span>
+              <strong id="totalAlerts">0</strong>
+              <span id="totalAlertsHint" class="metric-hint">No records loaded</span>
+            </article>
+            <article class="metric-card card-critical">
+              <span class="metric-label">Critical Alerts</span>
+              <strong id="criticalAlerts">0</strong>
+              <span class="metric-hint">Immediate review</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Blocked Attackers</span>
+              <strong id="uniqueSources">0</strong>
+              <span class="metric-hint">IPS Blacklisted</span>
+            </article>
+            <article class="metric-card card-warning">
+              <span class="metric-label">Top Threat</span>
+              <strong id="topThreat" class="metric-text">None</strong>
+              <span class="metric-hint">Most frequent type</span>
+            </article>
+          </section>
+
+          <!-- Split Layout: Severity Chart + Active IPS Blocks -->
+          <section class="double-grid">
+            <!-- Severity Chart Panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Threat Severity Profile</h2>
+                <span class="panel-note">Cumulative metrics</span>
+              </div>
+              <div id="severityBars" class="severity-bars"></div>
+            </div>
+
+            <!-- Active IPS Blacklisted Panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Active IPS Blacklist</h2>
+                <span id="ipsActiveLabel" class="panel-note">0 IPs blocked</span>
+              </div>
+              <div class="table-wrap max-h-300">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Blocked IP</th>
+                      <th>Reputation Score</th>
+                      <th>Blocked At</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="blockedRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- Incident Log Feed Table -->
+          <section class="panel alert-panel">
+            <div class="panel-header">
+              <h2>Live Incident Log Feed</h2>
+              <span id="alertCountLabel" class="panel-note">0 visible (Click any row to open AI Triage)</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Severity</th>
+                    <th>Type</th>
+                    <th>Source IP</th>
+                    <th>Location</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="alertRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ==========================================
+             TAB 2: LOG INGESTION (ADMIN ROLE RESTRICTED)
+             ========================================== -->
+        <div id="page-ingestion" class="tab-page" style="display: none;">
+          <div class="ingest-wrapper">
+            <div class="panel panel-center">
+              <div class="panel-header">
+                <h2>Manual Log Sandbox</h2>
+                <span id="ingestResult" class="panel-note">Ready</span>
+              </div>
+              <p class="panel-desc">
+                Paste raw log strings into the field below to verify real-time threat categorization. 
+                The system will parse columns, match heuristic signatures, and evaluate the query parameters 
+                against all active machine learning brains automatically.
+              </p>
+              <textarea
+                id="logLine"
+                class="textarea"
+                spellcheck="false"
+                placeholder="Example: 192.168.1.5 - GET /login?dur=1500&fpkts=85&bpkts=60 HTTP/1.1"
+              ></textarea>
+              <div class="panel-actions">
+                <button id="sendLogBtn" class="button button-primary" type="button">Submit Log</button>
+                <button id="sampleLogBtn" class="button button-secondary" type="button">Sample Log</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             TAB 3: MODEL ANALYTICS & STATISTICAL METRICS
+             ========================================== -->
+        <div id="page-brains" class="tab-page" style="display: none;">
+          <!-- Model Selection Header -->
+          <div class="panel model-selector-panel">
+            <label class="field-label" for="modelSelect">Select Model Brain to Audit</label>
+            <select id="modelSelect" class="input width-300">
+              <option value="web">🌐 WEB Brain — Web Attacks</option>
+              <option value="auth">🔑 AUTH Brain — Brute Force</option>
+              <option value="dos">💥 DOS Brain — Traffic Floods</option>
+              <option value="recon">🔍 RECON Brain — Port Scans</option>
+              <option value="ddos">🌊 DDOS Brain — DDoS LOIC Floods</option>
+              <option value="botnet">🤖 BOTNET Brain — Ares Botnet C2</option>
+              <option value="infiltration">🕵️ INFILTRATION Brain — Lateral Movement</option>
+            </select>
+          </div>
+
+          <!-- Model Statistical Grid -->
+          <section class="metric-grid" style="margin-top: 20px;">
+            <article class="metric-card">
+              <span class="metric-label">Model Accuracy</span>
+              <strong id="modelAccuracy" class="low">0.0%</strong>
+              <span class="metric-hint">Overall predictions</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Precision</span>
+              <strong id="modelPrecision">0.0%</strong>
+              <span class="metric-hint">Attacks predicted correctly</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Recall</span>
+              <strong id="modelRecall">0.0%</strong>
+              <span class="metric-hint">Detections caught successfully</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">F1-Score</span>
+              <strong id="modelF1" class="low">0.0%</strong>
+              <span class="metric-hint">Ensemble balance score</span>
+            </article>
+          </section>
+
+          <!-- Split Layout: Feature Importances & Confusion Matrix -->
+          <section class="double-grid">
+            <!-- Feature Importances Panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Random Forest Feature Importances</h2>
+                <span class="panel-note">Heuristic Weight Distributions</span>
+              </div>
+              <p class="panel-desc">
+                Below are the active weights of which log parameters the model prioritizes most to determine the classification.
+              </p>
+              <div id="featureImportanceBars" class="severity-bars"></div>
+            </div>
+
+            <!-- Confusion Matrix Panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Validation Confusion Matrix</h2>
+                <span class="panel-note">Statistical Detections vs Misses</span>
+              </div>
+              <p class="panel-desc">
+                Metrics audited on a held-out stratified validation set:
+              </p>
+              
+              <div class="matrix-grid">
+                <div class="matrix-card">
+                  <span class="matrix-label low">True Negatives (TN)</span>
+                  <strong id="matrixTN">0</strong>
+                  <span class="matrix-hint">Benign correctly identified</span>
+                </div>
+                <div class="matrix-card">
+                  <span class="matrix-label critical">False Positives (FP)</span>
+                  <strong id="matrixFP">0</strong>
+                  <span class="matrix-hint">Benign misclassified</span>
+                </div>
+                <div class="matrix-card">
+                  <span class="matrix-label critical">False Negatives (FN)</span>
+                  <strong id="matrixFN">0</strong>
+                  <span class="matrix-hint">Attacks missed by model</span>
+                </div>
+                <div class="matrix-card">
+                  <span class="matrix-label low">True Positives (TP)</span>
+                  <strong id="matrixTP">0</strong>
+                  <span class="matrix-hint">Attacks successfully caught</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
