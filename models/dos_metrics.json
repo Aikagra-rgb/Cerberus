@@ -1,0 +1,37 @@
+{
+    "model_type": "dos",
+    "dataset": "cic_wednesday.csv",
+    "trained_at": "2026-08-11 22:24:20",
+    "accuracy": 0.9995302959135745,
+    "precision": 0.99812382739212,
+    "recall": 1.0,
+    "f1_score": 0.9990610328638497,
+    "confusion_matrix": {
+        "tn": 1596,
+        "fp": 1,
+        "fn": 0,
+        "tp": 532
+    },
+    "feature_importances": {
+        "Destination Port": 0.07848384833592671,
+        "Flow Duration": 0.03721592530237068,
+        "Total Fwd Packets": 0.011144101355055468,
+        "Total Backward Packets": 0.03915082855212221,
+        "Total Length of Fwd Packets": 0.01924236602232938,
+        "Total Length of Bwd Packets": 0.15149333133571238,
+        "Fwd Packet Length Max": 0.027035201649844492,
+        "Fwd Packet Length Mean": 0.02003703789133728,
+        "Bwd Packet Length Max": 0.08920540571050488,
+        "Bwd Packet Length Mean": 0.13130144168487143,
+        "Flow Bytes/s": 0.07126005521997446,
+        "Flow Packets/s": 0.06296928764481798,
+        "Flow IAT Mean": 0.06643579674662774,
+        "Flow IAT Std": 0.04113395906089546,
+        "Flow IAT Min": 0.020599689525302445,
+        "Fwd IAT Mean": 0.06210054775252398,
+        "Fwd IAT Min": 0.0327713311687978,
+        "SYN Flag Count": 0.006884023104264394,
+        "RST Flag Count": 0.0,
+        "Init_Win_bytes_forward": 0.03153582193672072
+    }
+}

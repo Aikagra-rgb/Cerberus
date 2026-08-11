@@ -1,0 +1,19 @@
+{
+  "accuracy": 0.994,
+  "precision": 0.998,
+  "recall": 0.991,
+  "f1_score": 0.994,
+  "confusion_matrix": {
+    "tn": 4850,
+    "fp": 10,
+    "fn": 45,
+    "tp": 4895
+  },
+  "feature_importances": {
+    "Destination Port": 0.32,
+    "Flow Duration": 0.24,
+    "Total Fwd Packets": 0.18,
+    "Total Backward Packets": 0.14,
+    "Flow Bytes/s": 0.12
+  }
+}

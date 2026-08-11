@@ -1,0 +1,37 @@
+{
+    "model_type": "auth",
+    "dataset": "cic_tuesday.csv",
+    "trained_at": "2026-08-11 22:24:19",
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "confusion_matrix": {
+        "tn": 3116,
+        "fp": 0,
+        "fn": 0,
+        "tp": 1038
+    },
+    "feature_importances": {
+        "Destination Port": 0.3298694707580017,
+        "Flow Duration": 0.005922312011263407,
+        "Total Fwd Packets": 0.004074202849218772,
+        "Total Backward Packets": 0.009291709712082919,
+        "Total Length of Fwd Packets": 0.057781909027978966,
+        "Total Length of Bwd Packets": 0.03738023670178231,
+        "Fwd Packet Length Max": 0.15057717758148528,
+        "Fwd Packet Length Mean": 0.17832809993746268,
+        "Bwd Packet Length Max": 0.03759435186322448,
+        "Bwd Packet Length Mean": 0.049748864582043584,
+        "Flow Bytes/s": 0.03690578335925819,
+        "Flow Packets/s": 0.008703862896776635,
+        "Flow IAT Mean": 0.009767690369319727,
+        "Flow IAT Std": 0.02567704357738126,
+        "Flow IAT Min": 0.010919895029228214,
+        "Fwd IAT Mean": 0.002624719869954844,
+        "Fwd IAT Min": 0.005216101082631168,
+        "SYN Flag Count": 0.02099819029850826,
+        "RST Flag Count": 2.92281410635977e-17,
+        "Init_Win_bytes_forward": 0.018618378492397586
+    }
+}

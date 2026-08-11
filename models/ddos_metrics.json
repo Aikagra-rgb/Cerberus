@@ -1,0 +1,37 @@
+{
+    "model_type": "ddos",
+    "dataset": "cic_friday_ddos.csv",
+    "trained_at": "2026-08-11 22:24:21",
+    "accuracy": 0.9997999599919984,
+    "precision": 1.0,
+    "recall": 0.9995809763251624,
+    "f1_score": 0.9997904442581727,
+    "confusion_matrix": {
+        "tn": 5225,
+        "fp": 0,
+        "fn": 2,
+        "tp": 4771
+    },
+    "feature_importances": {
+        "Destination Port": 0.06615144436904871,
+        "Flow Duration": 0.017495335703196606,
+        "Total Fwd Packets": 0.0916801374712929,
+        "Total Backward Packets": 0.029451528180970573,
+        "Total Length of Fwd Packets": 0.123510729420607,
+        "Total Length of Bwd Packets": 0.02670303293770733,
+        "Fwd Packet Length Max": 0.18364804134135237,
+        "Fwd Packet Length Mean": 0.1488789869192392,
+        "Bwd Packet Length Max": 0.056634053332798216,
+        "Bwd Packet Length Mean": 0.05142516944610288,
+        "Flow Bytes/s": 0.0046498482075627645,
+        "Flow Packets/s": 0.008114545233105671,
+        "Flow IAT Mean": 0.003048542717543735,
+        "Flow IAT Std": 0.030925171566464918,
+        "Flow IAT Min": 0.002079310331802159,
+        "Fwd IAT Mean": 0.07072622943273268,
+        "Fwd IAT Min": 0.013777479075030708,
+        "SYN Flag Count": 1.8178511809290374e-05,
+        "RST Flag Count": 2.1218854535877997e-18,
+        "Init_Win_bytes_forward": 0.07108223580163209
+    }
+}

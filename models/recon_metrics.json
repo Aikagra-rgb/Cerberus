@@ -1,0 +1,37 @@
+{
+    "model_type": "recon",
+    "dataset": "cic_friday_portscan.csv",
+    "trained_at": "2026-08-11 22:24:20",
+    "accuracy": 0.9787234042553191,
+    "precision": 1.0,
+    "recall": 0.9148936170212766,
+    "f1_score": 0.9555555555555556,
+    "confusion_matrix": {
+        "tn": 141,
+        "fp": 0,
+        "fn": 4,
+        "tp": 43
+    },
+    "feature_importances": {
+        "Destination Port": 0.03488022092436681,
+        "Flow Duration": 0.028217079390468087,
+        "Total Fwd Packets": 0.0015085895688850084,
+        "Total Backward Packets": 0.02509835617773941,
+        "Total Length of Fwd Packets": 0.13296465941682967,
+        "Total Length of Bwd Packets": 0.08131569068106448,
+        "Fwd Packet Length Max": 0.09472654359261441,
+        "Fwd Packet Length Mean": 0.21359850783318088,
+        "Bwd Packet Length Max": 0.019357714533769974,
+        "Bwd Packet Length Mean": 0.0320917124437992,
+        "Flow Bytes/s": 0.007894126898535461,
+        "Flow Packets/s": 0.04068711061344718,
+        "Flow IAT Mean": 0.06213426062090984,
+        "Flow IAT Std": 0.015265357922353874,
+        "Flow IAT Min": 0.013270716850226464,
+        "Fwd IAT Mean": 0.013910076071204694,
+        "Fwd IAT Min": 0.014510568117727437,
+        "SYN Flag Count": 3.67636847492331e-17,
+        "RST Flag Count": 0.0,
+        "Init_Win_bytes_forward": 0.16856870834287713
+    }
+}
