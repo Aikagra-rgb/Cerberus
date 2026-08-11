@@ -27,6 +27,8 @@ from src.alert_store import (
 )
 from src.config import DATA_DIR, MODELS_DIR, MODEL_CONFIGS
 from src.detection_service import DetectionService
+from src.agents.orchestrator import MultiAgentOrchestrator
+from src.agents.rag_engine import get_rag_engine
 
 
 LEGACY_EVIDENCE_FILE = os.path.join(DATA_DIR, "hids_alerts.csv")
@@ -52,6 +54,7 @@ app.add_middleware(
 )
 
 detector = DetectionService()
+_orchestrator = MultiAgentOrchestrator()
 
 
 # ==========================================
@@ -96,6 +99,13 @@ class UnblockIPRequest(BaseModel):
 
 class DeployFirewallRequest(BaseModel):
     ip: str = Field(..., min_length=7, max_length=15)
+
+
+class MultiAgentTriageRequest(BaseModel):
+    threat_type: str = Field(..., min_length=1)
+    source_ip:   str = Field(..., min_length=7, max_length=15)
+    details:     str = Field(default="")
+    log_line:    str = Field(default="")
 
 
 # ==========================================
@@ -359,6 +369,55 @@ def get_model_analytics(user: dict = Depends(get_current_user)):
     return {
         "brains_loaded": len(detector.ai_engine.models),
         "analytics": analytics
+    }
+
+
+# ==========================================
+# MULTI-AGENT DEVSECOPS PIPELINE
+# ==========================================
+@app.post("/api/triage/multi-agent")
+def multi_agent_triage(
+    payload: MultiAgentTriageRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Runs the full Cerberus 4-agent DevSecOps pipeline:
+    Triage (DeepSeek) -> Research (MITRE RAG + DeepSeek) ->
+    Remediation (Nemotron) -> Guardrail (DeepSeek) -> Verified Output.
+    """
+    try:
+        result = _orchestrator.run(
+            threat_type=payload.threat_type,
+            source_ip=payload.source_ip,
+            details=payload.details,
+            log_line=payload.log_line,
+        )
+        return result
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Multi-agent pipeline failed: {str(exc)}"
+        )
+
+
+@app.get("/api/threat-intel/mitre")
+def mitre_search(
+    q: str = Query(..., min_length=2, description="Search query for MITRE ATT&CK techniques"),
+    top_k: int = Query(5, ge=1, le=20),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Performs a direct semantic search over the MITRE ATT&CK Enterprise
+    knowledge base (709 techniques) and returns the top-K matches.
+    """
+    rag = get_rag_engine()
+    if not rag.ready:
+        raise HTTPException(status_code=503, detail="MITRE RAG engine not ready. Check data/mitre_attack.json.")
+    results = rag.search(q, top_k=top_k)
+    return {
+        "query":           q,
+        "total_techniques": rag.technique_count,
+        "results":         results,
     }
 
 

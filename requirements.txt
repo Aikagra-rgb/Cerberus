@@ -1,9 +1,19 @@
+# Core ML & Data
 numpy
 pandas
 scikit-learn==1.6.1
 joblib
-streamlit
-plotly
+
+# API & Web
 fastapi
 uvicorn[standard]
 httpx
+
+# Dashboard
+streamlit
+plotly
+
+# Multi-Agent Pipeline Dependencies
+openai>=1.40.0          # OpenAI-compatible client for NVIDIA NIM / DeepSeek / Nemotron
+python-dotenv>=1.0.0    # Load .env config
+scikit-learn>=1.6.1     # TF-IDF vectorizer for MITRE RAG retrieval (already listed)

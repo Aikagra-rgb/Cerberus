@@ -791,3 +791,199 @@ if (activeToken) {
 } else {
   handleLogout();
 }
+
+// ==========================================
+// MULTI-AGENT PIPELINE — CLIENT LOGIC
+// ==========================================
+
+/** Tab switcher for Remediation Playbook tabs */
+function switchRemTab(name, clickedBtn) {
+  document.querySelectorAll(".rem-tab-content").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".rem-tab").forEach(b => b.classList.remove("active"));
+  const tab = document.getElementById(`remTab-${name}`);
+  if (tab) tab.classList.add("active");
+  if (clickedBtn) clickedBtn.classList.add("active");
+}
+window.switchRemTab = switchRemTab;
+
+/** Updates an agent step badge and card state */
+function setAgentStatus(agentKey, status, latencyMs) {
+  const stepEl  = document.getElementById(`step-${agentKey}`);
+  const badgeEl = document.getElementById(`badge-${agentKey}`);
+  if (!stepEl || !badgeEl) return;
+
+  // Remove all state classes
+  stepEl.classList.remove("pending", "running", "done", "error", "intercepted");
+  badgeEl.classList.remove("pending", "running", "done", "error", "intercepted");
+
+  const labelMap = {
+    pending:     "PENDING",
+    running:     "RUNNING",
+    done:        latencyMs ? `DONE ${latencyMs}ms` : "DONE",
+    error:       "ERROR",
+    intercepted: "BLOCKED",
+  };
+
+  stepEl.classList.add(status);
+  badgeEl.classList.add(status);
+  badgeEl.textContent = labelMap[status] || status.toUpperCase();
+}
+
+/** Reset all agent badges to PENDING */
+function resetPipeline() {
+  ["triage", "research", "remediation", "guardrail"].forEach(k => setAgentStatus(k, "pending", null));
+  ["triageResultSection", "researchResultSection", "remediationResultSection", "guardrailResultSection"]
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = "none"; });
+  const lat = document.getElementById("pipelineLatency");
+  if (lat) lat.style.display = "none";
+}
+
+/** Renders MITRE technique tags into a container element */
+function renderMitreTags(containerId, techniques) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = techniques.map(t => {
+    const tactics = (t.tactics || []).join(", ") || "Unknown";
+    return `<span class="mitre-tag" title="${t.name} | ${tactics}">${t.id} ${t.name}</span>`;
+  }).join("");
+}
+
+/** Main: Run the 4-agent pipeline */
+$("runMultiAgentBtn").addEventListener("click", async () => {
+  if (!activeTriageAlert) return;
+
+  const btn = $("runMultiAgentBtn");
+  btn.disabled = true;
+  btn.textContent = "⚡ Running Pipeline...";
+  resetPipeline();
+
+  const threat_type = activeTriageAlert["Threat Type"] || "Unknown Threat";
+  const source_ip   = activeTriageAlert["Source IP"]   || "0.0.0.0";
+  const details     = activeTriageAlert["Details"]     || "";
+  const log_line    = activeTriageAlert["Log Line"]    || "";
+
+  // Animate pipeline steps as running sequentially (optimistic UI)
+  const stepKeys = ["triage", "research", "remediation", "guardrail"];
+  for (const k of stepKeys) setAgentStatus(k, "pending", null);
+  setAgentStatus("triage", "running", null);
+
+  try {
+    const resp = await fetch(`${apiBase()}/api/triage/multi-agent`, {
+      method:  "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body:    JSON.stringify({ threat_type, source_ip, details, log_line }),
+    });
+    checkAuthResponse(resp.status);
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      alert(`Multi-agent pipeline error: ${err.detail || resp.statusText}`);
+      resetPipeline();
+      return;
+    }
+
+    const data = await resp.json();
+
+    // ── Update badge statuses from pipeline steps ────────────────────────
+    const stepNameMap = {
+      "Triage Agent":      "triage",
+      "Research Agent":    "research",
+      "Remediation Agent": "remediation",
+      "Guardrail Agent":   "guardrail",
+    };
+    (data.steps || []).forEach(step => {
+      const key = stepNameMap[step.agent];
+      if (key) setAgentStatus(key, step.status || "done", step.latency_ms);
+    });
+
+    // ── Triage Section ────────────────────────────────────────────────────
+    const triage = data.triage || {};
+    const triageSection = document.getElementById("triageResultSection");
+    if (triageSection) triageSection.style.display = "";
+
+    const sevColors = { CRITICAL: "var(--critical)", HIGH: "var(--high)", MEDIUM: "var(--medium)", LOW: "var(--low)" };
+    const sevColor  = sevColors[triage.severity] || "var(--text-dim)";
+
+    $("triageAnalysis").innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <span style="font-size:11px;font-weight:700;color:${sevColor};background:${sevColor}18;border:1px solid ${sevColor}40;border-radius:20px;padding:2px 10px;">${triage.severity || "HIGH"}</span>
+        <span style="font-size:11px;color:var(--text-muted);">Confidence: ${((triage.confidence || 0.5) * 100).toFixed(0)}%</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:6px;"><strong style="color:var(--text-main);">${triage.attack_class || threat_type}</strong></p>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">${triage.attack_vector || details}</p>
+      <p style="font-size:11px;color:var(--text-dim);">💥 <em>${triage.blast_radius || "Unknown blast radius"}</em></p>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:8px;padding-top:8px;border-top:1px solid rgba(100,116,139,0.12);">${triage.summary || ""}</p>
+    `;
+
+    // Asset tags
+    const assets = (triage.affected_assets || []);
+    $("triageAssets").innerHTML = assets.map(a =>
+      `<span class="mitre-tag" style="background:rgba(255,45,85,0.1);color:var(--pink);border-color:rgba(255,45,85,0.25);">🖥 ${a}</span>`
+    ).join("");
+
+    // ── Research Section ──────────────────────────────────────────────────
+    const research = data.research || {};
+    const researchSection = document.getElementById("researchResultSection");
+    if (researchSection) researchSection.style.display = "";
+
+    $("researchSummary").innerHTML = `
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">
+        <strong style="color:var(--text-main);">Lifecycle Stage:</strong> ${research.attack_lifecycle_stage || "Initial Access"}
+      </p>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">${research.intelligence_summary || ""}</p>
+      <p style="font-size:11px;color:var(--text-muted);"><strong style="color:var(--text-main);">Threat Actor Context:</strong> ${research.threat_actor_context || "Unknown"}</p>
+    `;
+    renderMitreTags("mitreTechTags", research.mitre_techniques || []);
+
+    const indicators = research.key_indicators || [];
+    $("keyIndicators").innerHTML = indicators.length
+      ? `<strong>Key Indicators of Compromise</strong>` + indicators.map(i => `<div style="padding:3px 0;font-family:var(--mono-family);font-size:10px;">⚠ ${i}</div>`).join("")
+      : "";
+
+    // ── Remediation Section ───────────────────────────────────────────────
+    const remediation = data.remediation || {};
+    const remSection = document.getElementById("remediationResultSection");
+    if (remSection) remSection.style.display = "";
+
+    $("triageCmdLin").textContent = remediation.firewall_cmd_linux || `sudo iptables -A INPUT -s ${source_ip} -j DROP`;
+    $("triageCmdWin").textContent = remediation.firewall_cmd_windows || `New-NetFirewallRule -DisplayName "Block ${source_ip}" -Direction Inbound -Action Block -RemoteAddress ${source_ip}`;
+    $("ansibleCode").textContent  = remediation.ansible_playbook || "---\n# No playbook generated";
+    $("sigmaCode").textContent    = remediation.sigma_rule       || "title: Cerberus Detection\nstatus: experimental";
+
+    const steps = remediation.patch_instructions || [];
+    $("triageMitigations").innerHTML = steps.map((s, i) => `<li><span style="color:var(--cyan);font-weight:700;">${i + 1}.</span> ${s}</li>`).join("");
+
+    // ── Guardrail Section ─────────────────────────────────────────────────
+    const guardrail = data.guardrail || {};
+    const guardrailSection = document.getElementById("guardrailResultSection");
+    if (guardrailSection) guardrailSection.style.display = "";
+
+    const verdict     = (guardrail.final_verdict || "APPROVED").toLowerCase();
+    const verdictIcon = { approved: "✅", intercepted: "🚫", corrected: "⚠️" }[verdict] || "✅";
+    const verdictEl   = $("guardrailVerdict");
+    verdictEl.className = `guardrail-verdict ${verdict}`;
+    verdictEl.innerHTML = `
+      <span style="font-size:20px;">${verdictIcon}</span>
+      <div>
+        <div>${guardrail.final_verdict || "APPROVED"}</div>
+        <div style="font-size:10px;font-weight:400;margin-top:2px;">Risk Score: ${guardrail.risk_score ?? 0}/100</div>
+      </div>
+    `;
+    $("guardrailNotes").textContent = guardrail.verification_notes || "All checks passed.";
+
+    // ── Pipeline Latency ───────────────────────────────────────────────────
+    const latEl = document.getElementById("pipelineLatency");
+    if (latEl && data.total_latency_ms) {
+      latEl.textContent = `⏱ Pipeline completed in ${(data.total_latency_ms / 1000).toFixed(1)}s`;
+      latEl.style.display = "";
+    }
+
+  } catch (err) {
+    console.error("Multi-agent pipeline error:", err);
+    ["triage", "research", "remediation", "guardrail"].forEach(k => setAgentStatus(k, "error", null));
+    alert(`Connection error: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "⚡ Run Multi-Agent Analysis";
+  }
+});

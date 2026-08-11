@@ -53,15 +53,16 @@
       <header class="triage-header">
         <div class="triage-brand">
           <span class="pulse-ring">🧠</span>
-          <h3>AI Analyst Insights</h3>
+          <h3>Cerberus Multi-Agent SOC Console</h3>
         </div>
         <button id="closeTriageBtn" class="close-triage-btn" type="button" title="Close Panel">✕</button>
       </header>
 
       <main class="triage-body">
+        <!-- Alert Summary Card -->
         <section class="triage-summary-card">
           <div class="summary-row">
-            <span class="summary-label">Target Alert</span>
+            <span class="summary-label">Alert Type</span>
             <strong id="triageThreatType" class="critical">SQL Injection</strong>
           </div>
           <div class="summary-row">
@@ -69,50 +70,135 @@
             <strong id="triageSourceIP" class="mono">203.0.113.77</strong>
           </div>
           <div class="summary-row">
-            <span class="summary-label">AI Confidence</span>
+            <span class="summary-label">Confidence</span>
             <strong id="triageProbability">100.0%</strong>
           </div>
         </section>
 
-        <!-- Threat Vector Analysis -->
+        <!-- Multi-Agent Pipeline Visualizer -->
         <section class="triage-section">
-          <h4>🧠 Attack Vector Analysis</h4>
-          <div id="triageAnalysis" class="triage-content-box">
-            No threat details parsed yet. Select an alert from the incident feed.
+          <h4>⚡ Multi-Agent Pipeline</h4>
+          <div id="agentPipeline" class="agent-pipeline">
+            <div class="agent-step" id="step-triage">
+              <div class="agent-step-icon">🎯</div>
+              <div class="agent-step-info">
+                <div class="agent-step-name">Triage Agent</div>
+                <div class="agent-step-model">DeepSeek V4 Pro</div>
+              </div>
+              <div class="agent-step-badge pending" id="badge-triage">PENDING</div>
+            </div>
+            <div class="agent-connector">→</div>
+            <div class="agent-step" id="step-research">
+              <div class="agent-step-icon">🔬</div>
+              <div class="agent-step-info">
+                <div class="agent-step-name">Research Agent</div>
+                <div class="agent-step-model">MITRE RAG + DeepSeek</div>
+              </div>
+              <div class="agent-step-badge pending" id="badge-research">PENDING</div>
+            </div>
+            <div class="agent-connector">→</div>
+            <div class="agent-step" id="step-remediation">
+              <div class="agent-step-icon">🔧</div>
+              <div class="agent-step-info">
+                <div class="agent-step-name">Remediation Agent</div>
+                <div class="agent-step-model">NVIDIA Nemotron-70B</div>
+              </div>
+              <div class="agent-step-badge pending" id="badge-remediation">PENDING</div>
+            </div>
+            <div class="agent-connector">→</div>
+            <div class="agent-step" id="step-guardrail">
+              <div class="agent-step-icon">🛡️</div>
+              <div class="agent-step-info">
+                <div class="agent-step-name">Guardrail Agent</div>
+                <div class="agent-step-model">DeepSeek V4 Pro</div>
+              </div>
+              <div class="agent-step-badge pending" id="badge-guardrail">PENDING</div>
+            </div>
+          </div>
+          <button id="runMultiAgentBtn" class="button button-primary" type="button" style="margin-top:12px; width:100%;">
+            ⚡ Run Multi-Agent Analysis
+          </button>
+          <div id="pipelineLatency" class="pipeline-latency" style="display:none;"></div>
+        </section>
+
+        <!-- Triage Agent Output -->
+        <section class="triage-section" id="triageResultSection" style="display:none;">
+          <h4>🎯 Triage Analysis</h4>
+          <div id="triageAnalysis" class="triage-content-box">Awaiting analysis...</div>
+          <div id="triageAssets" class="mitre-tags" style="margin-top:8px;"></div>
+        </section>
+
+        <!-- MITRE ATT&CK Research Output -->
+        <section class="triage-section" id="researchResultSection" style="display:none;">
+          <h4>🔬 MITRE ATT&CK Intelligence</h4>
+          <div id="researchSummary" class="triage-content-box"></div>
+          <div id="mitreTechTags" class="mitre-tags" style="margin-top:10px;"></div>
+          <div id="keyIndicators" class="triage-list-box" style="margin-top:8px;"></div>
+        </section>
+
+        <!-- Remediation Agent Output (Tabbed) -->
+        <section class="triage-section" id="remediationResultSection" style="display:none;">
+          <h4>🔧 Remediation Playbook</h4>
+          <div class="remediation-tabs">
+            <button class="rem-tab active" onclick="switchRemTab('firewall', this)">Firewall</button>
+            <button class="rem-tab" onclick="switchRemTab('ansible', this)">Ansible</button>
+            <button class="rem-tab" onclick="switchRemTab('sigma', this)">Sigma Rule</button>
+            <button class="rem-tab" onclick="switchRemTab('steps', this)">Steps</button>
+          </div>
+          <!-- Firewall Tab -->
+          <div id="remTab-firewall" class="rem-tab-content active">
+            <div class="terminal-container">
+              <div class="terminal-header">
+                <span>iptables (Linux / Kali)</span>
+                <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('triageCmdLin').textContent)">Copy</button>
+              </div>
+              <pre class="terminal-body"><span class="prompt">$</span> <code id="triageCmdLin">sudo iptables ...</code></pre>
+            </div>
+            <div class="terminal-container" style="margin-top:8px;">
+              <div class="terminal-header">
+                <span>PowerShell (Windows)</span>
+                <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('triageCmdWin').textContent)">Copy</button>
+              </div>
+              <pre class="terminal-body"><span class="prompt">PS></span> <code id="triageCmdWin">New-NetFirewallRule ...</code></pre>
+            </div>
+          </div>
+          <!-- Ansible Tab -->
+          <div id="remTab-ansible" class="rem-tab-content">
+            <div class="terminal-container">
+              <div class="terminal-header">
+                <span>Ansible Playbook (YAML)</span>
+                <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('ansibleCode').textContent)">Copy</button>
+              </div>
+              <pre class="terminal-body"><code id="ansibleCode">---</code></pre>
+            </div>
+          </div>
+          <!-- Sigma Tab -->
+          <div id="remTab-sigma" class="rem-tab-content">
+            <div class="terminal-container">
+              <div class="terminal-header">
+                <span>Sigma Detection Rule (YAML)</span>
+                <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('sigmaCode').textContent)">Copy</button>
+              </div>
+              <pre class="terminal-body"><code id="sigmaCode">title: Cerberus Detection</code></pre>
+            </div>
+          </div>
+          <!-- Steps Tab -->
+          <div id="remTab-steps" class="rem-tab-content">
+            <ul id="triageMitigations" class="triage-list">
+              <li>Awaiting remediation steps...</li>
+            </ul>
           </div>
         </section>
 
-        <!-- Mitigation Action Items -->
-        <section class="triage-section">
-          <h4>🛡️ Strategic Mitigations</h4>
-          <ul id="triageMitigations" class="triage-list">
-            <li>Review query parameters for SQL escape syntax.</li>
-            <li>Enable database least privilege credentials.</li>
-          </ul>
+        <!-- Guardrail Verdict -->
+        <section class="triage-section" id="guardrailResultSection" style="display:none;">
+          <h4>🛡️ Guardrail Verification</h4>
+          <div id="guardrailVerdict" class="guardrail-verdict"></div>
+          <div id="guardrailNotes" class="triage-content-box" style="margin-top:8px;"></div>
         </section>
 
-        <!-- OS-Level Firewall Deployment -->
+        <!-- Deploy OS Firewall Rule -->
         <section class="triage-section">
-          <h4>🔥 OS-Level Block Commands</h4>
-          <p class="section-hint">Deploy this rule to drop packets at the kernel interface.</p>
-          
-          <div class="terminal-container">
-            <div class="terminal-header">
-              <span>PowerShell (Windows)</span>
-              <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText($('triageCmdWin').textContent); alert('Copied Windows command!');">Copy</button>
-            </div>
-            <pre class="terminal-body"><span class="prompt">PS&gt;</span> <code id="triageCmdWin">New-NetFirewallRule ...</code></pre>
-          </div>
-
-          <div class="terminal-container">
-            <div class="terminal-header">
-              <span>iptables (Linux / Kali)</span>
-              <button class="copy-terminal-btn" type="button" onclick="navigator.clipboard.writeText($('triageCmdLin').textContent); alert('Copied Linux command!');">Copy</button>
-            </div>
-            <pre class="terminal-body"><span class="prompt">$</span> <code id="triageCmdLin">sudo iptables ...</code></pre>
-          </div>
-
-          <!-- Active Firewall Deploy Trigger -->
           <div class="triage-action-block">
             <button id="deployFirewallBtn" class="button button-primary width-100" type="button">Deploy OS Firewall Rule</button>
             <div id="deployResult" class="deploy-note">Only Administrators can deploy firewalls</div>

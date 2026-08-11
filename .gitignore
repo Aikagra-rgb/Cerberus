@@ -28,3 +28,11 @@ node_modules/
 # Local configuration / secrets
 ai-claude-ids-key.txt
 .env
+*.env
+
+# Python virtual environments
+.venv/
+venv/
+
+# FAISS / RAG vector index cache
+data/mitre_index/
