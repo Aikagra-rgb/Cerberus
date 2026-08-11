@@ -76,7 +76,12 @@ if ($Task -eq "api") {
 # ---------------------------------------------------------
 if ($Task -eq "frontend") {
     Write-Host "`n[Workflow] Starting frontend..." -ForegroundColor Cyan
-    & $Node frontend/server.mjs
+    if (Get-Command $Node -ErrorAction SilentlyContinue) {
+        & $Node frontend/server.mjs
+    } else {
+        Write-Host "   [*] Node.js not detected, using Python frontend server..." -ForegroundColor Yellow
+        & $Python frontend/server.py
+    }
 }
 
 # ---------------------------------------------------------
@@ -95,5 +100,11 @@ if ($Task -eq "all") {
 
     Start-Process $Python -ArgumentList "sentinel_engine.py"
     Start-Process $Python -ArgumentList "-m uvicorn api:app --host 127.0.0.1 --port 8000"
-    & $Node frontend/server.mjs
+    if (Get-Command $Node -ErrorAction SilentlyContinue) {
+        & $Node frontend/server.mjs
+    } else {
+        Write-Host "   [*] Node.js not detected, using Python frontend server..." -ForegroundColor Yellow
+        & $Python frontend/server.py
+    }
 }
+

@@ -29,12 +29,12 @@
     `;
     document.body.insertBefore(canvas, document.body.firstChild);
 
-    // Make sure all real content sits above the canvas
+    // Make sure static body content sits above the canvas while preserving fixed elements (like drawers and modals)
     document.querySelectorAll('body > *:not(#cerberus-bg)').forEach(el => {
-      if (!el.style.position || el.style.position === 'static') {
+      const pos = window.getComputedStyle(el).position;
+      if (pos === 'static') {
         el.style.position = 'relative';
       }
-      if (!el.style.zIndex) el.style.zIndex = '1';
     });
 
     const W = window.innerWidth;
