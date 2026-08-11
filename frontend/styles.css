@@ -29,8 +29,7 @@
 }
 
 body {
-  background: #030408;
-  background-image: var(--bg-gradient);
+  background: transparent; /* Three.js canvas fills the background */
   color: var(--text-main);
   font-family: var(--font-family);
   min-height: 100vh;
@@ -38,43 +37,44 @@ body {
   position: relative;
 }
 
-/* ── Cyber-Security Scanline Grid & Sweeping Laser ── */
+/* ── CSS scanline grid overlaid on top of 3D canvas ── */
 body::before {
   content: "";
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
-    linear-gradient(rgba(18, 24, 38, 0.08) 50%, transparent 50%),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(rgba(0, 240, 255, 0.015) 1px, transparent 1px);
-  background-size: 100% 4px, 40px 40px, 40px 40px;
-  z-index: 1;
+  background:
+    linear-gradient(rgba(0, 240, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.012) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px;
+  z-index: 2;
   pointer-events: none;
-  opacity: 0.9;
+  opacity: 0.6;
 }
 
-/* Sweeping horizontal cyber laser line */
+/* Sweeping horizontal cyber laser line — cuts through 3D space */
 body::after {
   content: "";
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
-  box-shadow: 0 0 15px var(--cyan), 0 0 5px var(--purple);
-  opacity: 0.25;
-  z-index: 2;
+  background: linear-gradient(90deg, transparent 0%, transparent 10%, var(--cyan) 40%, var(--purple) 60%, transparent 90%, transparent 100%);
+  box-shadow: 0 0 20px var(--cyan), 0 0 40px rgba(0, 240, 255, 0.3), 0 0 8px var(--purple);
+  opacity: 0.35;
+  z-index: 3;
   pointer-events: none;
-  animation: laser-sweep 8s linear infinite;
+  animation: laser-sweep 10s linear infinite;
 }
 
 @keyframes laser-sweep {
-  0% { top: -2%; }
-  100% { top: 102%; }
+  0%   { top: -2%; opacity: 0; }
+  5%   { opacity: 0.35; }
+  95%  { opacity: 0.35; }
+  100% { top: 102%; opacity: 0; }
 }
 
 /* ── High-Intensity Background Glows ── */
@@ -149,8 +149,9 @@ code {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(2, 3, 6, 0.88);
-  backdrop-filter: blur(20px);
+  background: rgba(2, 3, 6, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -160,15 +161,17 @@ code {
 .login-card {
   width: 100%;
   max-width: 440px;
-  background: linear-gradient(145deg, rgba(20, 28, 47, 0.85) 0%, rgba(8, 12, 22, 0.98) 100%);
-  border: 2px solid rgba(0, 240, 255, 0.25);
+  background: linear-gradient(145deg, rgba(20, 28, 47, 0.75) 0%, rgba(8, 12, 22, 0.92) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.3);
   border-radius: 28px;
   padding: 48px;
-  backdrop-filter: blur(16px);
-  box-shadow: 
-    0 30px 80px rgba(0, 0, 0, 0.85), 
-    0 0 40px rgba(0, 240, 255, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.9),
+    0 0 60px rgba(0, 240, 255, 0.12),
+    0 0 120px rgba(191, 90, 242, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -287,19 +290,21 @@ code {
 .triage-console {
   position: fixed;
   top: 0;
-  right: -440px; /* Hidden by default */
+  right: -440px;
   width: 440px;
   height: 100vh;
-  background: linear-gradient(135deg, rgba(8, 12, 22, 0.96) 0%, rgba(4, 6, 12, 0.98) 100%);
-  border-left: 2px solid rgba(0, 240, 255, 0.25);
-  box-shadow: 
-    -20px 0 60px rgba(0, 0, 0, 0.8),
-    -5px 0 30px rgba(0, 240, 255, 0.05);
+  background: linear-gradient(135deg, rgba(8, 12, 22, 0.88) 0%, rgba(4, 6, 12, 0.94) 100%);
+  border-left: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow:
+    -20px 0 80px rgba(0, 0, 0, 0.85),
+    -2px 0 40px rgba(0, 240, 255, 0.08),
+    inset 1px 0 0 rgba(255, 255, 255, 0.04);
   z-index: 500;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(25px);
-  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  transition: right 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .triage-console.open {
   right: 0; /* Slide In */
@@ -504,10 +509,12 @@ code {
   z-index: 10;
 }
 .sidebar {
-  background: rgba(5, 7, 13, 0.9);
-  border-right: 2px solid rgba(0, 240, 255, 0.1);
+  background: rgba(5, 7, 13, 0.82);
+  border-right: 1px solid rgba(0, 240, 255, 0.12);
   padding: 32px 28px;
-  backdrop-filter: blur(25px);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5), inset -1px 0 0 rgba(0, 240, 255, 0.06);
 }
 .brand-block {
   display: flex;
