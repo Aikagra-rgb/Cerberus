@@ -553,7 +553,11 @@ async function handleLogin(e) {
     // Bootstrap dashboard view
     bootstrapConsole();
   } catch (error) {
-    loginError.textContent = error.message;
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      loginError.textContent = `Backend API offline at ${apiBase()}. Start backend: python -m uvicorn api:app --port 8000`;
+    } else {
+      loginError.textContent = error.message;
+    }
   } finally {
     loginBtn.disabled = false;
     loginBtn.textContent = "Sign In";
