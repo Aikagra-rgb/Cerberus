@@ -325,36 +325,23 @@ def init_db(db_path=DB_PATH):
 
 
 def _seed_default_users(db_path):
-    """Seed default Administrator and Analyst accounts if none exist in users table.
-    
-    NOTE: These are initial setup credentials. Change them immediately after
-    first login via the administration interface.
-    """
+    """Seed or update default Administrator and Analyst accounts so demo credentials work."""
     with closing(get_connection(db_path)) as conn:
-        count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        if count == 0:
-            # Seed ADMIN (stronger default password)
-            admin_pwd_hash, admin_salt = hash_password("Cerberus@Admin2026!")
-            conn.execute(
-                """
-                INSERT INTO users (username, password_hash, salt, role)
-                VALUES (?, ?, ?, ?)
-                """,
-                ("admin", admin_pwd_hash, admin_salt, "ADMIN"),
-            )
-            # Seed ANALYST (stronger default password)
-            analyst_pwd_hash, analyst_salt = hash_password("Cerberus@Analyst2026!")
-            conn.execute(
-                """
-                INSERT INTO users (username, password_hash, salt, role)
-                VALUES (?, ?, ?, ?)
-                """,
-                ("analyst", analyst_pwd_hash, analyst_salt, "ANALYST"),
-            )
-            conn.commit()
-            print("[SECURITY] Default accounts seeded. Change passwords after first login!")
-            print("  admin    / Cerberus@Admin2026!")
-            print("  analyst  / Cerberus@Analyst2026!")
+        for username, password, role in [
+            ("admin", "admin123", "ADMIN"),
+            ("analyst", "analyst123", "ANALYST"),
+        ]:
+            row = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+            if not row:
+                pwd_hash, salt = hash_password(password)
+                conn.execute(
+                    """
+                    INSERT INTO users (username, password_hash, salt, role)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (username, pwd_hash, salt, role),
+                )
+                conn.commit()
 
 
 def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
