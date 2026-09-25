@@ -18,3 +18,7 @@ services:
         value: "https://integrate.api.nvidia.com/v1"
       - key: ALLOWED_ORIGINS
         value: "https://cerberus-soc.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

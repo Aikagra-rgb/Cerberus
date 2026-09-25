@@ -7,7 +7,11 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime
 
+from dotenv import load_dotenv
+
 from src.config import DB_PATH
+
+load_dotenv()
 
 
 # PBKDF2 configuration — 600k iterations as recommended by OWASP 2024
@@ -325,23 +329,47 @@ def init_db(db_path=DB_PATH):
 
 
 def _seed_default_users(db_path):
-    """Seed or update default Administrator and Analyst accounts so demo credentials work."""
+    """Seed or update Administrator account.
+    
+    If ADMIN_USERNAME and ADMIN_PASSWORD environment variables are set,
+    all demo accounts (analyst, admin123, etc.) are purged and ONLY this single
+    admin account is authorized.
+    """
+    admin_user = os.getenv("ADMIN_USERNAME", "").strip()
+    admin_pass = os.getenv("ADMIN_PASSWORD", "").strip()
+
     with closing(get_connection(db_path)) as conn:
-        for username, password, role in [
-            ("admin", "admin123", "ADMIN"),
-            ("analyst", "analyst123", "ANALYST"),
-        ]:
-            row = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
-            if not row:
-                pwd_hash, salt = hash_password(password)
+        if admin_user and admin_pass:
+            # Delete any other user accounts so only the owner can access
+            conn.execute("DELETE FROM users WHERE username != ?", (admin_user.lower(),))
+            conn.execute("DELETE FROM sessions WHERE username != ?", (admin_user.lower(),))
+            
+            pwd_hash, salt = hash_password(admin_pass)
+            conn.execute(
+                """
+                INSERT INTO users (username, password_hash, salt, role)
+                VALUES (?, ?, ?, 'ADMIN')
+                ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, salt = excluded.salt, role = 'ADMIN'
+                """,
+                (admin_user.lower(), pwd_hash, salt),
+            )
+            conn.commit()
+            print(f"[SECURITY] Single admin account '{admin_user.lower()}' verified and active.")
+        else:
+            # Fallback if env vars not provided: purge 'analyst' demo user and ensure only single admin exists
+            conn.execute("DELETE FROM users WHERE username = 'analyst'")
+            conn.execute("DELETE FROM sessions WHERE username = 'analyst'")
+            count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            if count == 0:
+                pwd_hash, salt = hash_password("Cerberus@Secure2026!")
                 conn.execute(
                     """
                     INSERT INTO users (username, password_hash, salt, role)
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, 'ADMIN')
                     """,
-                    (username, pwd_hash, salt, role),
+                    ("admin", pwd_hash, salt),
                 )
-                conn.commit()
+            conn.commit()
 
 
 def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
