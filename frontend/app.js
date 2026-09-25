@@ -58,8 +58,23 @@ let currentUser = null; // { username, role }
 
 const $ = (id) => document.getElementById(id);
 
+const PROD_API_URL = "https://cerberus-gxim.onrender.com";
+
+function isCloud() {
+  return window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+}
+
 function apiBase() {
-  return $("apiUrl").value.replace(/\/$/, "");
+  const el = $("apiUrl");
+  if (el && el.value) {
+    const val = el.value.trim().replace(/\/$/, "");
+    if (isCloud() && (val.includes("localhost") || val.includes("127.0.0.1"))) {
+      el.value = PROD_API_URL;
+      return PROD_API_URL;
+    }
+    return val;
+  }
+  return isCloud() ? PROD_API_URL : "http://127.0.0.1:8000";
 }
 
 function severityFor(type) {
