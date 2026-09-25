@@ -4,6 +4,7 @@
   "version": "0.3.0",
   "type": "module",
   "scripts": {
+    "build": "echo 'Static assets ready'",
     "dev": "node server.mjs",
     "start": "node server.mjs"
   }
