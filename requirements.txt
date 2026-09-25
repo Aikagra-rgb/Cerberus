@@ -1,19 +1,20 @@
 # Core ML & Data
-numpy
-pandas
-scikit-learn==1.6.1
-joblib
+numpy>=1.26.0
+pandas>=2.1.0
+scikit-learn>=1.6.1
+joblib>=1.3.0
 
-# API & Web
-fastapi
-uvicorn[standard]
-httpx
+# API & Web Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+python-multipart>=0.0.9
+pydantic>=2.6.0
 
-# Dashboard
-streamlit
-plotly
+# Multi-Agent LLM Pipeline (NVIDIA NIM / DeepSeek / Nemotron)
+openai>=1.40.0
+python-dotenv>=1.0.0
 
-# Multi-Agent Pipeline Dependencies
-openai>=1.40.0          # OpenAI-compatible client for NVIDIA NIM / DeepSeek / Nemotron
-python-dotenv>=1.0.0    # Load .env config
-scikit-learn>=1.6.1     # TF-IDF vectorizer for MITRE RAG retrieval (already listed)
+# Dashboard (optional - comment out if not using Streamlit)
+streamlit>=1.35.0
+plotly>=5.20.0

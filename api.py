@@ -39,15 +39,20 @@ app = FastAPI(
     description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
 )
 
-# Enable CORS for the local Single Page Application
+# CORS: read from env var for cloud (Vercel) + keep localhost for dev
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+_cloud_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+_default_origins = [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
+_allowed_origins = list(set(_default_origins + _cloud_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
