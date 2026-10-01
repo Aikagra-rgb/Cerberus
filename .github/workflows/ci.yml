@@ -120,7 +120,15 @@ jobs:
       - name: Test backend container
         run: |
           docker run -d --name cerberus-test -p 8000:8000 cerberus-backend:latest
-          sleep 10
+          for i in $(seq 1 30); do
+            if curl -s -f http://localhost:8000/health; then
+              echo "Backend is healthy and ready!"
+              break
+            fi
+            echo "Waiting for backend to load AI models ($i/30)..."
+            sleep 2
+          done
+          docker logs cerberus-test
           curl -f http://localhost:8000/health
           docker stop cerberus-test
 
