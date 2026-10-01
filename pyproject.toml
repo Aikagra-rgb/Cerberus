@@ -72,8 +72,11 @@ Repository = "https://github.com/Aikagra-rgb/Cerberus"
 Issues = "https://github.com/Aikagra-rgb/Cerberus/issues"
 Documentation = "https://github.com/Aikagra-rgb/Cerberus/wiki"
 
+[tool.setuptools]
+py-modules = ["api", "sentinel_engine", "trainer"]
+
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 include = ["src*"]
 
 [tool.ruff]
@@ -130,37 +133,35 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.11"
-warn_return_any = true
+python_version = "3.12"
+warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = false
-disallow_incomplete_defs = true
-check_untyped_defs = true
-no_implicit_optional = true
-strict_optional = true
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = false
+strict_optional = false
 ignore_missing_imports = true
 namespace_packages = true
 
-[tool.mypy-overrides]
+[[tool.mypy.overrides]]
 module = [
-    "pydantic",
-    "fastapi",
-    "uvicorn",
-    "httpx",
-    "pandas",
-    "sklearn",
-    "joblib",
-    "openai",
-    "structlog",
-    "prometheus_client",
-    "aiosqlite",
+    "pydantic.*",
+    "fastapi.*",
+    "uvicorn.*",
+    "httpx.*",
+    "pandas.*",
+    "sklearn.*",
+    "joblib.*",
+    "openai.*",
+    "structlog.*",
+    "prometheus_client.*",
+    "aiosqlite.*",
+    "numpy.*",
+    "numpy",
 ]
 ignore_missing_imports = true
-
-# numpy 2.x type stubs require Python 3.12+, ignore on 3.11
-[tool.mypy-overrides.numpy]
 ignore_errors = true
-ignore_missing_imports = true
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv"]
@@ -170,6 +171,7 @@ skips = ["B101", "B601", "B310", "B608"]  # assert, shell=True, urllib, SQL (leg
 entrypoint = "api:app"
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]

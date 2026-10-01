@@ -651,7 +651,7 @@ def _seed_default_users(db_path):
     If ADMIN_USERNAME and ADMIN_PASSWORD environment variables are set,
     all demo accounts (analyst, admin123, etc.) are purged and ONLY this single
     admin account is authorized.
-    
+
     This runs ONCE during initial setup - it checks if admin already exists
     to avoid deleting legitimate users on subsequent init_db calls.
     """
@@ -666,7 +666,9 @@ def _seed_default_users(db_path):
 
     with closing(get_connection(db_path)) as conn:
         # Check if admin already exists - if so, this is not initial setup
-        existing = conn.execute("SELECT 1 FROM users WHERE username = ?", (admin_user.lower(),)).fetchone()
+        existing = conn.execute(
+            "SELECT 1 FROM users WHERE username = ?", (admin_user.lower(),)
+        ).fetchone()
         if existing:
             # Admin exists - this is a re-init, just verify password is current
             pwd_hash, salt = hash_password(admin_pass)

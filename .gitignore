@@ -6,6 +6,9 @@ __pycache__/
 # Pytest & Caches
 .pytest_cache/
 .qodo/
+.coverage
+htmlcov/
+*.egg-info/
 
 # Operating System Files
 .DS_Store

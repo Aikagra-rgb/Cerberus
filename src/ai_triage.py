@@ -23,7 +23,7 @@ class AITriageAgent:
         """Pings the local Ollama server to verify availability."""
         try:
             # Quick health check probe to Ollama's index
-            response = urllib.request.urlopen(f"{self.ollama_url}/", timeout=1.5)
+            response = urllib.request.urlopen(f"{self.ollama_url}/", timeout=1.5)  # nosec B310
             return response.status == 200
         except Exception:
             return False
@@ -99,7 +99,7 @@ class AITriageAgent:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
-            response = urllib.request.urlopen(req, timeout=10.0)
+            response = urllib.request.urlopen(req, timeout=10.0)  # nosec B310
             result = json.loads(response.read().decode())
             parsed_response = json.loads(result["response"].strip())
 

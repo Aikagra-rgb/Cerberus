@@ -617,7 +617,9 @@ async def live_alerts(
         token = authorization.split(" ")[1].strip()
 
     if not token:
-        await websocket.send_json({"error": "Unauthorized: Missing token (use Authorization header or token query param)"})
+        await websocket.send_json(
+            {"error": "Unauthorized: Missing token (use Authorization header or token query param)"}
+        )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
