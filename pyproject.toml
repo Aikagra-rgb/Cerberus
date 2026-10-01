@@ -158,6 +158,9 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Ignore numpy type stub Python 3.12+ syntax error on older Python
+numpy = { ignore_errors = true }
+
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv"]
 skips = ["B101", "B601", "B310", "B608"]  # assert, shell=True, urllib, SQL (legacy/false positives)
