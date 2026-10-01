@@ -147,7 +147,6 @@ module = [
     "fastapi",
     "uvicorn",
     "httpx",
-    "numpy",
     "pandas",
     "sklearn",
     "joblib",
@@ -158,8 +157,10 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Ignore numpy type stub Python 3.12+ syntax error on older Python
-numpy = { ignore_errors = true }
+# numpy 2.x type stubs require Python 3.12+, ignore on 3.11
+[tool.mypy-overrides.numpy]
+ignore_errors = true
+ignore_missing_imports = true
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv"]
