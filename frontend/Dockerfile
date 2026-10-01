@@ -1,26 +1,11 @@
-# Multi-stage build for frontend
-FROM node:20-alpine AS builder
+# Production stage - serve static assets with Nginx
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy static frontend files to Nginx web root
+COPY . /usr/share/nginx/html
 
-# Copy package files
-COPY frontend/package*.json ./
-RUN npm ci
-
-# Copy source files
-COPY frontend/ ./
-
-# Build production assets (if using a build step)
-# RUN npm run build
-
-# Production stage - serve with nginx
-FROM nginx:alpine AS production
-
-# Copy built assets from builder
-COPY --from=builder /app /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom Nginx configuration with security headers
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

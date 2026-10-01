@@ -112,7 +112,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          file: Dockerfile.frontend
+          file: ./frontend/Dockerfile
           push: false
           tags: cerberus-frontend:latest
           load: true
