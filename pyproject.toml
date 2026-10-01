@@ -162,6 +162,9 @@ ignore_missing_imports = true
 exclude_dirs = ["tests", ".venv", "venv"]
 skips = ["B101", "B601", "B310", "B608"]  # assert, shell=True, urllib, SQL (legacy/false positives)
 
+[tool.vercel]
+entrypoint = "api:app"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
