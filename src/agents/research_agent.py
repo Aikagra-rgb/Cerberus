@@ -94,9 +94,9 @@ Based on the above, produce a structured threat intelligence report as JSON.
         if "mitre_techniques" not in result or not result["mitre_techniques"]:
             result["mitre_techniques"] = [
                 {
-                    "id": t["id"],
-                    "name": t["name"],
-                    "tactics": t["tactics"],
+                    "id": t.get("id", ""),
+                    "name": t.get("name", ""),
+                    "tactics": t.get("tactics", []),
                     "relevance": "Matched via MITRE ATT&CK RAG retrieval.",
                 }
                 for t in mitre_results[:3]
@@ -112,9 +112,9 @@ Based on the above, produce a structured threat intelligence report as JSON.
         return {
             "mitre_techniques": [
                 {
-                    "id": t["id"],
-                    "name": t["name"],
-                    "tactics": t["tactics"],
+                    "id": t.get("id", ""),
+                    "name": t.get("name", ""),
+                    "tactics": t.get("tactics", []),
                     "relevance": "Retrieved via MITRE ATT&CK RAG fallback.",
                 }
                 for t in mitre_results[:3]

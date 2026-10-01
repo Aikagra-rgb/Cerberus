@@ -4,6 +4,7 @@ import platform
 import re
 import subprocess
 import time
+import uuid
 from collections import defaultdict
 from datetime import datetime
 
@@ -13,6 +14,7 @@ from fastapi import (
     Header,
     HTTPException,
     Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -36,13 +38,15 @@ from src.alert_store import (
 )
 from src.config import DATA_DIR, MODEL_CONFIGS, MODELS_DIR
 from src.detection_service import DetectionService
-from src.logging_config import configure_logging, get_logger
+from src.logging_config import bind_context, clear_context, configure_logging, get_logger
+from src.settings import get_settings
 from starlette.responses import Response
 
+settings = get_settings()
 LEGACY_EVIDENCE_FILE = os.path.join(DATA_DIR, "hids_alerts.csv")
 
-# Configure structured logging
-configure_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+# Configure structured logging with optional rotating file
+configure_logging(level=settings.LOG_LEVEL, log_file=settings.LOG_FILE)
 log = get_logger(__name__)
 
 # Prometheus metrics
@@ -70,9 +74,8 @@ app = FastAPI(
     description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
 )
 
-# CORS: read from env var for cloud + keep localhost for dev
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
-_cloud_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+# CORS: read from typed settings + keep localhost for dev
+_cloud_origins = settings.get_allowed_origins_list()
 _default_origins = [
     "http://127.0.0.1:5173",
     "http://localhost:5173",
@@ -80,37 +83,35 @@ _default_origins = [
     "http://localhost:3000",
 ]
 _allowed_origins = list(set(_default_origins + _cloud_origins))
-
-# Only allow specific Vercel domains from env, not all subdomains
-_vercel_domains = os.getenv("VERCEL_DOMAINS", "")
-_vercel_origins = [o.strip() for o in _vercel_domains.split(",") if o.strip()]
+_vercel_origins = settings.get_vercel_domains_list()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins + _vercel_origins,
-    # allow_origin_regex removed - use VERCEL_DOMAINS env var for specific domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Prometheus metrics middleware
+# Prometheus metrics & distributed request tracing middleware
 @app.middleware("http")
-async def metrics_middleware(request, call_next):
-    import time
-
+async def metrics_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+    bind_context(request_id=request_id)
     start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        duration = time.time() - start_time
 
-    # Record metrics
-    REQUEST_COUNT.labels(
-        method=request.method, endpoint=request.url.path, status=response.status_code
-    ).inc()
-    REQUEST_LATENCY.labels(method=request.method, endpoint=request.url.path).observe(duration)
-
-    return response
+        REQUEST_COUNT.labels(
+            method=request.method, endpoint=request.url.path, status=response.status_code
+        ).inc()
+        REQUEST_LATENCY.labels(method=request.method, endpoint=request.url.path).observe(duration)
+        return response
+    finally:
+        clear_context()
 
 
 @app.get("/metrics")

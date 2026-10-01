@@ -1,5 +1,7 @@
 import hashlib
 import os
+import signal
+import sys
 import threading
 import time
 from datetime import datetime
@@ -75,6 +77,10 @@ class FIMEngine:
         self.files = files
         self.hashes = {}
         self.baseline_ready = False
+        self.running = True
+
+    def stop(self):
+        self.running = False
 
     def calculate_hash(self, filepath):
         if not os.path.exists(filepath):
@@ -92,22 +98,37 @@ class FIMEngine:
         print(f"{Colors.GREEN}[INIT] FIM Monitoring Started.{Colors.RESET}")
 
         for f in self.files:
-            if not os.path.exists(f):
-                with open(f, "w") as t:
-                    t.write("SECRET_CONFIG=TRUE")
-
-        for f in self.files:
-            self.hashes[f] = self.calculate_hash(f)
+            if os.path.exists(f):
+                self.hashes[f] = self.calculate_hash(f)
+            else:
+                print(
+                    f"{Colors.YELLOW}[FIM INFO] Configured file '{f}' not present at startup; monitoring for creation.{Colors.RESET}"
+                )
         self.baseline_ready = True
 
-        while True:
+        while self.running:
             time.sleep(3)
-            if not self.baseline_ready:
+            if not self.baseline_ready or not self.running:
                 continue
 
             for f in self.files:
+                if not os.path.exists(f):
+                    if f in self.hashes:
+                        print(f"\n{Colors.RED}[FIM ALERT] CRITICAL FILE DELETED: {f}{Colors.RESET}")
+                        log_incident(
+                            "File Tampering",
+                            "Localhost",
+                            "Server Internal",
+                            f"Critical file deleted: {f}",
+                        )
+                        del self.hashes[f]
+                    continue
+
                 current_hash = self.calculate_hash(f)
-                if current_hash != self.hashes.get(f):
+                if f not in self.hashes:
+                    print(f"\n{Colors.YELLOW}[FIM ALERT] NEW FILE MONITORED: {f}{Colors.RESET}")
+                    self.hashes[f] = current_hash
+                elif current_hash != self.hashes.get(f):
                     print(f"\n{Colors.RED}[FIM ALERT] CRITICAL FILE MODIFIED: {f}{Colors.RESET}")
                     log_incident(
                         "File Tampering",
@@ -196,10 +217,24 @@ if __name__ == "__main__":
     t_auth.start()
     t_fim.start()
 
+    stop_event = threading.Event()
+
+    def handle_shutdown(sig, frame):
+        print(
+            f"\n{Colors.RED}[SYSTEM] Received signal {sig}. Shutting down gracefully...{Colors.RESET}"
+        )
+        fim_engine.stop()
+        stop_event.set()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_shutdown)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, handle_shutdown)
+
     print(f"{Colors.CYAN}[SYSTEM] All Sentinels deployed. Press Ctrl+C to stop.{Colors.RESET}")
 
     try:
-        while True:
+        while not stop_event.is_set():
             time.sleep(1)
     except KeyboardInterrupt:
-        print(f"\n{Colors.RED}[SYSTEM] Shutting down...{Colors.RESET}")
+        handle_shutdown(signal.SIGINT, None)

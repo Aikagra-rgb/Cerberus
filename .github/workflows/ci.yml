@@ -61,7 +61,7 @@ jobs:
           pip install -e .
 
       - name: Run pytest
-        run: pytest tests/ -v --cov=src --cov=api --cov-report=term-missing --cov-fail-under=45
+        run: pytest tests/ -v --cov=src --cov=api --cov-report=term-missing --cov-fail-under=55
 
   security-scan:
     name: Security Scan

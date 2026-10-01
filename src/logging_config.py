@@ -6,26 +6,41 @@ Uses structlog with JSON output for production, pretty console for development.
 import logging
 import os
 import sys
+from logging.handlers import RotatingFileHandler
 
 import structlog
 
 
-def configure_logging(level: str = "INFO", json_output: bool = None):
+def configure_logging(level: str = "INFO", json_output: bool = None, log_file: str = None):
     """
-    Configure structlog for the application.
+    Configure structlog for the application with optional log rotation.
 
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         json_output: Force JSON output. Defaults to True if not in TTY or if LOG_JSON=1
+        log_file: Optional path to log file with automatic 10MB rotation
     """
     if json_output is None:
         json_output = not sys.stdout.isatty() or os.getenv("LOG_JSON", "0") == "1"
 
+    log_file_path = log_file or os.getenv("LOG_FILE", "").strip()
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+
+    if log_file_path:
+        log_dir = os.path.dirname(os.path.abspath(log_file_path))
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        file_handler = RotatingFileHandler(
+            log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+        )
+        handlers.append(file_handler)
+
     # Standard library logging config
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout,
+        handlers=handlers,
         level=getattr(logging, level.upper(), logging.INFO),
+        force=True,
     )
 
     # Shared processors
