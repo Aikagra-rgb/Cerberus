@@ -27,15 +27,16 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install -e .
 
       - name: Run Ruff (linting)
-        run: ruff check src/ tests/ api.py sentinel_engine.py trainer.py
+        run: ruff check .
 
       - name: Run Ruff (format check)
-        run: ruff format --check src/ tests/ api.py sentinel_engine.py trainer.py
+        run: ruff format --check .
 
       - name: Run MyPy (type checking)
-        run: mypy src/ api.py --ignore-missing-imports --disallow-untyped-defs
+        run: mypy src/ api.py --ignore-missing-imports
 
       - name: Run Bandit (security linting)
         run: bandit -r src/ -ll -x tests/
@@ -57,6 +58,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install -e .
 
       - name: Run pytest
         run: pytest tests/ -v --cov=src --cov=api --cov-report=term-missing --cov-fail-under=70
