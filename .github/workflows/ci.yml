@@ -119,7 +119,10 @@ jobs:
 
       - name: Test backend container
         run: |
-          docker run -d --name cerberus-test -p 8000:8000 cerberus-backend:latest
+          docker run -d --name cerberus-test -p 8000:8000 \
+            -e ADMIN_USERNAME=admin \
+            -e ADMIN_PASSWORD=CerberusCiTestPass2026! \
+            cerberus-backend:latest
           for i in $(seq 1 30); do
             if curl -s -f http://localhost:8000/health; then
               echo "Backend is healthy and ready!"

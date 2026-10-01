@@ -659,6 +659,10 @@ def _seed_default_users(db_path):
     admin_pass = os.getenv("ADMIN_PASSWORD", "").strip()
 
     if not admin_user or not admin_pass:
+        with closing(get_connection(db_path)) as conn:
+            existing = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+            if existing and existing[0] > 0:
+                return
         raise RuntimeError(
             "ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set. "
             "No default credentials are allowed for security."
