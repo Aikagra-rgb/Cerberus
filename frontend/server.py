@@ -1,9 +1,10 @@
-import os
 import http.server
+import os
 import socketserver
 
 PORT = int(os.environ.get("PORT", 5173))
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+
 
 class SPAHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -16,6 +17,7 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         if not os.path.exists(target) or os.path.isdir(target):
             self.path = "/index.html"
         return super().do_GET()
+
 
 if __name__ == "__main__":
     socketserver.TCPServer.allow_reuse_address = True

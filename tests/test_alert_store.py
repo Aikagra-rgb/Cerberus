@@ -1,7 +1,12 @@
 import csv
+import os
 import tempfile
 import unittest
 from pathlib import Path
+
+# Set test environment variables before importing alert_store
+os.environ.setdefault("ADMIN_USERNAME", "testadmin")
+os.environ.setdefault("ADMIN_PASSWORD", "TestPass123!")
 
 from src.alert_store import ALERT_COLUMNS, add_alert, list_alerts, migrate_legacy_csv
 
@@ -54,30 +59,39 @@ class AlertStoreTests(unittest.TestCase):
             self.assertEqual(len(alerts), 1)
 
     def test_user_auth_and_sessions(self):
-        from src.alert_store import create_user, authenticate_user, create_session, get_session, delete_session
+        from src.alert_store import (
+            authenticate_user,
+            create_session,
+            create_user,
+            delete_session,
+            get_session,
+        )
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             db_path = str(Path(tmp_dir) / "sentinel.db")
 
             # 1. Test User Creation
-            self.assertTrue(create_user("testadmin", "adminpass", "ADMIN", db_path=db_path))
-            # Test duplicate user protection
-            self.assertFalse(create_user("testadmin", "otherpass", "ANALYST", db_path=db_path))
+            self.assertTrue(create_user("testuser", "adminpass", "ADMIN", db_path=db_path))
+            # Test duplicate user protection - same username different password
+            result = create_user("testuser", "otherpass", "ANALYST", db_path=db_path)
+            # Should return False due to duplicate username
+            self.assertFalse(result, "Duplicate username should return False")
 
             # 2. Test User Authentication
-            auth_success = authenticate_user("testadmin", "adminpass", db_path=db_path)
+            auth_success = authenticate_user("testuser", "adminpass", db_path=db_path)
             self.assertIsNotNone(auth_success)
             self.assertEqual(auth_success["role"], "ADMIN")
 
-            auth_fail = authenticate_user("testadmin", "wrongpass", db_path=db_path)
+            auth_fail = authenticate_user("testuser", "wrongpass", db_path=db_path)
             self.assertIsNone(auth_fail)
 
             # 3. Test Sessions
-            token = create_session("testadmin", db_path=db_path)
+            token = create_session("testuser", db_path=db_path)
             self.assertIsNotNone(token)
 
             session_data = get_session(token, db_path=db_path)
             self.assertIsNotNone(session_data)
-            self.assertEqual(session_data["username"], "testadmin")
+            self.assertEqual(session_data["username"], "testuser")
             self.assertEqual(session_data["role"], "ADMIN")
 
             # Test session deletion
@@ -88,4 +102,3 @@ class AlertStoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -21,11 +21,12 @@ load_dotenv()
 
 # ── NVIDIA NIM Configuration ─────────────────────────────────────────────────
 _NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-_NEMOTRON_KEY    = os.getenv("NEMOTRON_API_KEY", "")
-_DEEPSEEK_KEY    = os.getenv("DEEPSEEK_API_KEY", "")
-_NEMOTRON_MODEL  = os.getenv("NEMOTRON_MODEL",   "nvidia/llama-3.1-nemotron-70b-instruct")
-_DEEPSEEK_MODEL  = os.getenv("DEEPSEEK_MODEL",   "deepseek-ai/deepseek-v4-0324")
-_TIMEOUT         = int(os.getenv("AGENT_TIMEOUT_SECONDS", "30"))
+_NEMOTRON_KEY = os.getenv("NEMOTRON_API_KEY", "")
+_DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+_NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+_DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-ai/deepseek-v4-0324")
+_TIMEOUT = int(os.getenv("AGENT_TIMEOUT_SECONDS", "30"))
+
 
 # ── OpenAI-compatible client builder ─────────────────────────────────────────
 def _make_client(api_key: str) -> OpenAI:
@@ -44,7 +45,7 @@ def _deepseek_client() -> OpenAI:
 def call_llm(
     system_prompt: str,
     user_prompt: str,
-    model_family: str = "deepseek",   # "deepseek" | "nemotron"
+    model_family: str = "deepseek",  # "deepseek" | "nemotron"
     temperature: float = 0.2,
     max_tokens: int = 1024,
     json_mode: bool = False,
@@ -55,11 +56,11 @@ def call_llm(
     """
     if model_family == "nemotron":
         client = _nemotron_client()
-        model  = _NEMOTRON_MODEL
+        model = _NEMOTRON_MODEL
         api_key = _NEMOTRON_KEY
     else:
         client = _deepseek_client()
-        model  = _DEEPSEEK_MODEL
+        model = _DEEPSEEK_MODEL
         api_key = _DEEPSEEK_KEY
 
     if not api_key:
@@ -70,7 +71,7 @@ def call_llm(
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user",   "content": user_prompt},
+        {"role": "user", "content": user_prompt},
     ]
 
     kwargs: dict = dict(

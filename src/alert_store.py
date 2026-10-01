@@ -131,7 +131,9 @@ async def init_async_db(db_path=DB_PATH):
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_source_ip ON alerts(source_ip)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
-        await conn.execute("CREATE INDEX IF NOT EXISTS idx_reputation_blocked ON reputation(blocked)")
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reputation_blocked ON reputation(blocked)"
+        )
         await conn.commit()
 
     # Seed default user accounts if missing (use sync for now)
@@ -203,7 +205,9 @@ def create_session(username: str, db_path=DB_PATH) -> str:
     """Creates a session token for the user and stores it in the database."""
     init_db(db_path)
     token = secrets.token_hex(32)
-    expires_at = datetime.fromtimestamp(datetime.now().timestamp() + 86400).strftime("%Y-%m-%d %H:%M:%S")
+    expires_at = datetime.fromtimestamp(datetime.now().timestamp() + 86400).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     with closing(get_connection(db_path)) as conn:
         conn.execute(
             """
@@ -288,7 +292,9 @@ async def create_session_async(username: str, db_path=DB_PATH) -> str:
     """Async version of create_session."""
     await init_async_db(db_path)
     token = secrets.token_hex(32)
-    expires_at = datetime.fromtimestamp(datetime.now().timestamp() + 86400).strftime("%Y-%m-%d %H:%M:%S")
+    expires_at = datetime.fromtimestamp(datetime.now().timestamp() + 86400).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     async with get_async_connection(db_path) as conn:
         await conn.execute(
             """
@@ -340,7 +346,7 @@ def update_ip_reputation(ip: str, score_to_add: float, db_path=DB_PATH) -> bool:
     """Increments threat score and sets blocked = 1 if score >= 100. Returns blocked status."""
     init_db(db_path)
     if ip == "Unknown" or ip == "127.0.0.1" or ip == "Localhost":
-        return False # Never block local debuggers
+        return False  # Never block local debuggers
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with closing(get_connection(db_path)) as conn:
@@ -412,9 +418,16 @@ def get_ip_reputation(ip: str, db_path=DB_PATH) -> dict:
     """Retrieves threat score and block status for a specific IP."""
     init_db(db_path)
     with closing(get_connection(db_path)) as conn:
-        row = conn.execute("SELECT score, blocked, updated_at FROM reputation WHERE ip = ?", (ip,)).fetchone()
+        row = conn.execute(
+            "SELECT score, blocked, updated_at FROM reputation WHERE ip = ?", (ip,)
+        ).fetchone()
     if row:
-        return {"ip": ip, "score": float(row["score"]), "blocked": bool(row["blocked"]), "updated_at": row["updated_at"]}
+        return {
+            "ip": ip,
+            "score": float(row["score"]),
+            "blocked": bool(row["blocked"]),
+            "updated_at": row["updated_at"],
+        }
     return {"ip": ip, "score": 0.0, "blocked": False, "updated_at": None}
 
 
@@ -422,7 +435,9 @@ def list_all_reputations(db_path=DB_PATH) -> list:
     """Lists all recorded IP reputations."""
     init_db(db_path)
     with closing(get_connection(db_path)) as conn:
-        rows = conn.execute("SELECT ip, score, blocked, updated_at FROM reputation ORDER BY score DESC LIMIT 100").fetchall()
+        rows = conn.execute(
+            "SELECT ip, score, blocked, updated_at FROM reputation ORDER BY score DESC LIMIT 100"
+        ).fetchall()
     return [dict(row) for row in rows]
 
 
@@ -506,10 +521,17 @@ async def get_ip_reputation_async(ip: str, db_path=DB_PATH) -> dict:
     """Async version of get_ip_reputation."""
     await init_async_db(db_path)
     async with get_async_connection(db_path) as conn:
-        row = await conn.execute("SELECT score, blocked, updated_at FROM reputation WHERE ip = ?", (ip,))
+        row = await conn.execute(
+            "SELECT score, blocked, updated_at FROM reputation WHERE ip = ?", (ip,)
+        )
         row = await row.fetchone()
     if row:
-        return {"ip": ip, "score": float(row["score"]), "blocked": bool(row["blocked"]), "updated_at": row["updated_at"]}
+        return {
+            "ip": ip,
+            "score": float(row["score"]),
+            "blocked": bool(row["blocked"]),
+            "updated_at": row["updated_at"],
+        }
     return {"ip": ip, "score": 0.0, "blocked": False, "updated_at": None}
 
 
@@ -517,7 +539,9 @@ async def list_all_reputations_async(db_path=DB_PATH) -> list:
     """Async version of list_all_reputations."""
     await init_async_db(db_path)
     async with get_async_connection(db_path) as conn:
-        rows = await conn.execute("SELECT ip, score, blocked, updated_at FROM reputation ORDER BY score DESC LIMIT 100")
+        rows = await conn.execute(
+            "SELECT ip, score, blocked, updated_at FROM reputation ORDER BY score DESC LIMIT 100"
+        )
         rows = await rows.fetchall()
     return [dict(row) for row in rows]
 
@@ -623,49 +647,57 @@ def init_db(db_path=DB_PATH):
 
 def _seed_default_users(db_path):
     """Seed or update Administrator account.
-    
+
     If ADMIN_USERNAME and ADMIN_PASSWORD environment variables are set,
     all demo accounts (analyst, admin123, etc.) are purged and ONLY this single
     admin account is authorized.
+    
+    This runs ONCE during initial setup - it checks if admin already exists
+    to avoid deleting legitimate users on subsequent init_db calls.
     """
     admin_user = os.getenv("ADMIN_USERNAME", "").strip()
     admin_pass = os.getenv("ADMIN_PASSWORD", "").strip()
 
-    with closing(get_connection(db_path)) as conn:
-        if admin_user and admin_pass:
-            # Delete any other user accounts so only the owner can access
-            conn.execute("DELETE FROM users WHERE username != ?", (admin_user.lower(),))
-            conn.execute("DELETE FROM sessions WHERE username != ?", (admin_user.lower(),))
+    if not admin_user or not admin_pass:
+        raise RuntimeError(
+            "ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set. "
+            "No default credentials are allowed for security."
+        )
 
+    with closing(get_connection(db_path)) as conn:
+        # Check if admin already exists - if so, this is not initial setup
+        existing = conn.execute("SELECT 1 FROM users WHERE username = ?", (admin_user.lower(),)).fetchone()
+        if existing:
+            # Admin exists - this is a re-init, just verify password is current
             pwd_hash, salt = hash_password(admin_pass)
             conn.execute(
                 """
-                INSERT INTO users (username, password_hash, salt, role)
-                VALUES (?, ?, ?, 'ADMIN')
-                ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash, salt = excluded.salt, role = 'ADMIN'
+                UPDATE users SET password_hash = ?, salt = ? WHERE username = ?
                 """,
-                (admin_user.lower(), pwd_hash, salt),
+                (pwd_hash, salt, admin_user.lower()),
             )
             conn.commit()
-            print(f"[SECURITY] Single admin account '{admin_user.lower()}' verified and active.")
-        else:
-            # Fallback if env vars not provided: purge 'analyst' demo user and ensure only single admin exists
-            conn.execute("DELETE FROM users WHERE username = 'analyst'")
-            conn.execute("DELETE FROM sessions WHERE username = 'analyst'")
-            count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-            if count == 0:
-                pwd_hash, salt = hash_password("Cerberus@Secure2026!")
-                conn.execute(
-                    """
-                    INSERT INTO users (username, password_hash, salt, role)
-                    VALUES (?, ?, ?, 'ADMIN')
-                    """,
-                    ("admin", pwd_hash, salt),
-                )
-            conn.commit()
+            return
+
+        # Initial setup: purge demo accounts and create admin
+        conn.execute("DELETE FROM users WHERE username != ?", (admin_user.lower(),))
+        conn.execute("DELETE FROM sessions WHERE username != ?", (admin_user.lower(),))
+
+        pwd_hash, salt = hash_password(admin_pass)
+        conn.execute(
+            """
+            INSERT INTO users (username, password_hash, salt, role)
+            VALUES (?, ?, ?, 'ADMIN')
+            """,
+            (admin_user.lower(), pwd_hash, salt),
+        )
+        conn.commit()
+        print(f"[SECURITY] Single admin account '{admin_user.lower()}' created and active.")
 
 
-def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
+def add_alert(
+    threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH
+):
     """Add alert synchronously."""
     init_db(db_path)
     timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -680,7 +712,9 @@ def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_repo
         conn.commit()
 
 
-async def add_alert_async(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
+async def add_alert_async(
+    threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH
+):
     """Add alert asynchronously."""
     await init_async_db(db_path)
     timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -772,9 +806,7 @@ def migrate_legacy_csv(csv_path, db_path=DB_PATH):
                 if not row or not any(row.values()):
                     continue
                 values = tuple(row.get(column, "") for column in ALERT_COLUMNS)
-                row_key = hashlib.sha256(
-                    repr((row_number, values)).encode("utf-8")
-                ).hexdigest()
+                row_key = hashlib.sha256(repr((row_number, values)).encode("utf-8")).hexdigest()
                 try:
                     conn.execute(
                         """

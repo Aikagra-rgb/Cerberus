@@ -1,8 +1,12 @@
+import os
 import unittest
 
-from fastapi.testclient import TestClient
+# Set test environment variables before importing api
+os.environ.setdefault("ADMIN_USERNAME", "testadmin")
+os.environ.setdefault("ADMIN_PASSWORD", "TestPass123!")
 
 import api
+from fastapi.testclient import TestClient
 
 
 class FakeAIEngine:
@@ -37,7 +41,7 @@ class ApiTests(unittest.TestCase):
         self.original_detector = api.detector
         api.detector = FakeDetector()
         self.client = TestClient(api.app)
-        
+
         # Override get_current_user to act as an ADMIN by default for existing unit tests
         api.app.dependency_overrides[api.get_current_user] = self.mock_admin_user
 
@@ -84,12 +88,12 @@ class ApiTests(unittest.TestCase):
     def test_ingest_log_rejects_unauthenticated_user(self):
         # Remove dependency overrides to simulate a real unauthenticated request
         api.app.dependency_overrides.clear()
-        
+
         response = self.client.post(
             "/api/logs",
             json={"line": "203.0.113.10 attack payload", "source": "unit-test"},
         )
-        
+
         # Should return 401 Unauthorized due to missing header
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["detail"], "Missing or invalid session token")
@@ -97,29 +101,36 @@ class ApiTests(unittest.TestCase):
     def test_ingest_log_rejects_analyst_role(self):
         # Override current user as a read-only ANALYST
         api.app.dependency_overrides[api.get_current_user] = self.mock_analyst_user
-        
+
         response = self.client.post(
             "/api/logs",
             json={"line": "203.0.113.10 attack payload", "source": "unit-test"},
         )
-        
+
         # Should return 403 Forbidden due to insufficient role permissions
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"], "Action restricted to Administrator role")
 
     def test_get_blocked_ips(self):
         import api
+
         original_list_blocked_ips = api.list_blocked_ips
-        api.list_blocked_ips = lambda: [{"ip": "1.2.3.4", "score": 150.0, "updated_at": "2026-05-23 20:00:00"}]
+        api.list_blocked_ips = lambda: [
+            {"ip": "1.2.3.4", "score": 150.0, "updated_at": "2026-05-23 20:00:00"}
+        ]
         try:
             response = self.client.get("/api/blocked-ips")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json(), [{"ip": "1.2.3.4", "score": 150.0, "updated_at": "2026-05-23 20:00:00"}])
+            self.assertEqual(
+                response.json(),
+                [{"ip": "1.2.3.4", "score": 150.0, "updated_at": "2026-05-23 20:00:00"}],
+            )
         finally:
             api.list_blocked_ips = original_list_blocked_ips
 
     def test_unblock_ip(self):
         import api
+
         original_unblock_ip = api.unblock_ip
         unblocked_ip = []
         api.unblock_ip = lambda ip: unblocked_ip.append(ip)
@@ -145,11 +156,14 @@ class ApiTests(unittest.TestCase):
 
     def test_deploy_firewall_successful(self):
         import subprocess
+
         original_run = subprocess.run
+
         class DummyResult:
             returncode = 0
             stdout = "success"
             stderr = ""
+
         subprocess.run = lambda *args, **kwargs: DummyResult()
         try:
             response = self.client.post("/api/ips/deploy-firewall", json={"ip": "1.2.3.4"})

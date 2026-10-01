@@ -20,20 +20,20 @@ class AgentStep:
     """Represents a single agent's execution result and metadata."""
 
     def __init__(self, agent_name: str, model: str):
-        self.agent_name: str   = agent_name
-        self.model:      str   = model
-        self.status:     str   = "pending"   # pending | running | done | error | intercepted
-        self.result:     dict  = {}
-        self.error:      str   = ""
-        self.latency_ms: int   = 0
+        self.agent_name: str = agent_name
+        self.model: str = model
+        self.status: str = "pending"  # pending | running | done | error | intercepted
+        self.result: dict = {}
+        self.error: str = ""
+        self.latency_ms: int = 0
 
     def to_dict(self) -> dict:
         return {
-            "agent":      self.agent_name,
-            "model":      self.model,
-            "status":     self.status,
-            "result":     self.result,
-            "error":      self.error,
+            "agent": self.agent_name,
+            "model": self.model,
+            "status": self.status,
+            "result": self.result,
+            "error": self.error,
             "latency_ms": self.latency_ms,
         }
 
@@ -48,18 +48,18 @@ class MultiAgentOrchestrator:
     """
 
     AGENT_MODELS = {
-        "Triage Agent":      "DeepSeek V4 Pro",
-        "Research Agent":    "DeepSeek V4 Pro + MITRE RAG",
+        "Triage Agent": "DeepSeek V4 Pro",
+        "Research Agent": "DeepSeek V4 Pro + MITRE RAG",
         "Remediation Agent": "NVIDIA Nemotron-70B",
-        "Guardrail Agent":   "DeepSeek V4 Pro",
+        "Guardrail Agent": "DeepSeek V4 Pro",
     }
 
     def run(
         self,
         threat_type: str,
-        source_ip:   str,
-        details:     str,
-        log_line:    str = "",
+        source_ip: str,
+        details: str,
+        log_line: str = "",
     ) -> dict:
         """
         Execute the full multi-agent pipeline and return the complete
@@ -86,14 +86,14 @@ class MultiAgentOrchestrator:
             }
         """
         pipeline_start = time.time()
-        pipeline_id    = f"cerberus-{int(pipeline_start)}"
-        started_at     = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        pipeline_id = f"cerberus-{int(pipeline_start)}"
+        started_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         steps: list[AgentStep] = []
 
-        triage_result     = {}
-        research_result   = {}
+        triage_result = {}
+        research_result = {}
         remediation_result = {}
-        guardrail_result  = {}
+        guardrail_result = {}
 
         # ── Step 1: Triage Agent ────────────────────────────────────────────
         step1 = AgentStep("Triage Agent", self.AGENT_MODELS["Triage Agent"])
@@ -101,15 +101,20 @@ class MultiAgentOrchestrator:
         t0 = time.time()
         try:
             triage_result = triage_agent.run(threat_type, source_ip, details, log_line)
-            step1.result  = triage_result
-            step1.status  = "done"
+            step1.result = triage_result
+            step1.status = "done"
         except Exception as exc:
             step1.status = "error"
-            step1.error  = str(exc)
-            triage_result = {"attack_class": threat_type, "severity": "HIGH",
-                             "attack_vector": details, "affected_assets": ["Unknown"],
-                             "blast_radius": "Unknown", "confidence": 0.5,
-                             "summary": f"{threat_type} from {source_ip}."}
+            step1.error = str(exc)
+            triage_result = {
+                "attack_class": threat_type,
+                "severity": "HIGH",
+                "attack_vector": details,
+                "affected_assets": ["Unknown"],
+                "blast_radius": "Unknown",
+                "confidence": 0.5,
+                "summary": f"{threat_type} from {source_ip}.",
+            }
         step1.latency_ms = int((time.time() - t0) * 1000)
         steps.append(step1)
 
@@ -119,15 +124,18 @@ class MultiAgentOrchestrator:
         t0 = time.time()
         try:
             research_result = research_agent.run(triage_result, threat_type, source_ip, details)
-            step2.result    = research_result
-            step2.status    = "done"
+            step2.result = research_result
+            step2.status = "done"
         except Exception as exc:
             step2.status = "error"
-            step2.error  = str(exc)
-            research_result = {"mitre_techniques": [], "threat_actor_context": "Unknown",
-                               "attack_lifecycle_stage": "Initial Access",
-                               "key_indicators": [source_ip],
-                               "intelligence_summary": f"Research unavailable for {threat_type}."}
+            step2.error = str(exc)
+            research_result = {
+                "mitre_techniques": [],
+                "threat_actor_context": "Unknown",
+                "attack_lifecycle_stage": "Initial Access",
+                "key_indicators": [source_ip],
+                "intelligence_summary": f"Research unavailable for {threat_type}.",
+            }
         step2.latency_ms = int((time.time() - t0) * 1000)
         steps.append(step2)
 
@@ -143,15 +151,15 @@ class MultiAgentOrchestrator:
             step3.status = "done"
         except Exception as exc:
             step3.status = "error"
-            step3.error  = str(exc)
+            step3.error = str(exc)
             remediation_result = {
-                "firewall_cmd_linux":   f"sudo iptables -A INPUT -s {source_ip} -j DROP",
+                "firewall_cmd_linux": f"sudo iptables -A INPUT -s {source_ip} -j DROP",
                 "firewall_cmd_windows": f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}',
-                "nginx_hardening":      None,
-                "ansible_playbook":     f"---\n- name: Block {source_ip}\n  hosts: all\n  tasks:\n    - iptables: chain=INPUT source={source_ip} jump=DROP",
-                "sigma_rule":           f"title: Cerberus - {threat_type}\nstatus: experimental",
-                "patch_instructions":   [f"Block {source_ip}", "Investigate affected services."],
-                "remediation_summary":  f"Fallback remediation for {threat_type} from {source_ip}.",
+                "nginx_hardening": None,
+                "ansible_playbook": f"---\n- name: Block {source_ip}\n  hosts: all\n  tasks:\n    - iptables: chain=INPUT source={source_ip} jump=DROP",
+                "sigma_rule": f"title: Cerberus - {threat_type}\nstatus: experimental",
+                "patch_instructions": [f"Block {source_ip}", "Investigate affected services."],
+                "remediation_summary": f"Fallback remediation for {threat_type} from {source_ip}.",
             }
         step3.latency_ms = int((time.time() - t0) * 1000)
         steps.append(step3)
@@ -165,15 +173,19 @@ class MultiAgentOrchestrator:
                 remediation_result, triage_result, threat_type, source_ip
             )
             step4.result = guardrail_result
-            approved     = guardrail_result.get("approved", True)
+            approved = guardrail_result.get("approved", True)
             step4.status = "done" if approved else "intercepted"
         except Exception as exc:
             step4.status = "error"
-            step4.error  = str(exc)
-            guardrail_result = {"approved": True, "risk_score": 0,
-                                "intercepted_items": [], "corrections": [],
-                                "verification_notes": "Guardrail check skipped.",
-                                "final_verdict": "APPROVED"}
+            step4.error = str(exc)
+            guardrail_result = {
+                "approved": True,
+                "risk_score": 0,
+                "intercepted_items": [],
+                "corrections": [],
+                "verification_notes": "Guardrail check skipped.",
+                "final_verdict": "APPROVED",
+            }
             approved = True
         step4.latency_ms = int((time.time() - t0) * 1000)
         steps.append(step4)
@@ -183,28 +195,28 @@ class MultiAgentOrchestrator:
         # ── Build Final Result ───────────────────────────────────────────────
         return {
             # Pipeline metadata
-            "pipeline_id":      pipeline_id,
-            "started_at":       started_at,
+            "pipeline_id": pipeline_id,
+            "started_at": started_at,
             "total_latency_ms": total_ms,
-            "steps":            [s.to_dict() for s in steps],
-
+            "steps": [s.to_dict() for s in steps],
             # Full agent outputs
-            "triage":      triage_result,
-            "research":    research_result,
+            "triage": triage_result,
+            "research": research_result,
             "remediation": remediation_result,
-            "guardrail":   guardrail_result,
-
+            "guardrail": guardrail_result,
             # Verdict
-            "approved":      guardrail_result.get("approved", True),
+            "approved": guardrail_result.get("approved", True),
             "final_verdict": guardrail_result.get("final_verdict", "APPROVED"),
-
             # Backward-compatible fields for existing ai_report schema
-            "agent_mode":          "MULTI_AGENT",
-            "analysis":            triage_result.get("summary", f"{threat_type} from {source_ip}."),
-            "mitigations":         remediation_result.get("patch_instructions", []),
-            "firewall_cmd_linux":  remediation_result.get("firewall_cmd_linux",
-                                       f"sudo iptables -A INPUT -s {source_ip} -j DROP"),
-            "firewall_cmd_windows": remediation_result.get("firewall_cmd_windows",
-                                       f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" '
-                                       f'-Direction Inbound -Action Block -RemoteAddress {source_ip}'),
+            "agent_mode": "MULTI_AGENT",
+            "analysis": triage_result.get("summary", f"{threat_type} from {source_ip}."),
+            "mitigations": remediation_result.get("patch_instructions", []),
+            "firewall_cmd_linux": remediation_result.get(
+                "firewall_cmd_linux", f"sudo iptables -A INPUT -s {source_ip} -j DROP"
+            ),
+            "firewall_cmd_windows": remediation_result.get(
+                "firewall_cmd_windows",
+                f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" '
+                f"-Direction Inbound -Action Block -RemoteAddress {source_ip}",
+            ),
         }

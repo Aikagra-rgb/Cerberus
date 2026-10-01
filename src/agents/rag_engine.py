@@ -15,9 +15,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-_DEFAULT_DATA = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "mitre_attack.json"
-)
+_DEFAULT_DATA = os.path.join(os.path.dirname(__file__), "..", "..", "data", "mitre_attack.json")
 
 
 class RAGEngine:
@@ -44,13 +42,15 @@ class RAGEngine:
 
             # Build composite corpus: name + tactics + description + detection
             self._corpus = [
-                " ".join([
-                    t.get("id", ""),
-                    t.get("name", ""),
-                    " ".join(t.get("tactics", [])),
-                    t.get("description", ""),
-                    t.get("detection", ""),
-                ]).lower()
+                " ".join(
+                    [
+                        t.get("id", ""),
+                        t.get("name", ""),
+                        " ".join(t.get("tactics", [])),
+                        t.get("description", ""),
+                        t.get("detection", ""),
+                    ]
+                ).lower()
                 for t in self._techniques
             ]
 
@@ -94,15 +94,17 @@ class RAGEngine:
                 if scores[idx] < 0.01:
                     continue  # Skip near-zero relevance matches
                 tech = self._techniques[idx]
-                results.append({
-                    "id":          tech.get("id", ""),
-                    "name":        tech.get("name", ""),
-                    "tactics":     tech.get("tactics", []),
-                    "description": tech.get("description", "")[:600],
-                    "detection":   tech.get("detection", "")[:400],
-                    "platforms":   tech.get("platforms", []),
-                    "score":       round(float(scores[idx]), 4),
-                })
+                results.append(
+                    {
+                        "id": tech.get("id", ""),
+                        "name": tech.get("name", ""),
+                        "tactics": tech.get("tactics", []),
+                        "description": tech.get("description", "")[:600],
+                        "detection": tech.get("detection", "")[:400],
+                        "platforms": tech.get("platforms", []),
+                        "score": round(float(scores[idx]), 4),
+                    }
+                )
             return results
         except Exception as exc:
             print(f"[RAGEngine] Search error: {exc}")

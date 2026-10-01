@@ -6,15 +6,15 @@ from src.config import FEATURE_SHORT_KEYS
 # Apache/Nginx Combined Log Format regex:
 # 192.168.1.1 - - [21/Nov/2025:12:00:01 +0000] "GET /page HTTP/1.1" 200 1234
 _COMBINED_LOG_RE = re.compile(
-    r'^(?P<ip>\S+)\s+'                     # client IP
-    r'\S+\s+'                               # ident
-    r'\S+\s+'                               # auth user
-    r'\[(?P<time>[^\]]+)\]\s+'             # timestamp
-    r'"(?P<method>\S+)\s+'                 # request method
-    r'(?P<uri>\S+)\s+'                     # request URI
-    r'(?P<proto>[^"]+)"\s+'                # protocol
-    r'(?P<status>\d+)\s+'                  # status code
-    r'(?P<size>\S+)'                       # response size
+    r"^(?P<ip>\S+)\s+"  # client IP
+    r"\S+\s+"  # ident
+    r"\S+\s+"  # auth user
+    r"\[(?P<time>[^\]]+)\]\s+"  # timestamp
+    r'"(?P<method>\S+)\s+'  # request method
+    r"(?P<uri>\S+)\s+"  # request URI
+    r'(?P<proto>[^"]+)"\s+'  # protocol
+    r"(?P<status>\d+)\s+"  # status code
+    r"(?P<size>\S+)"  # response size
 )
 
 # Common attack-associated destination ports for heuristic scoring
@@ -67,7 +67,7 @@ class FeatureExtractor:
             if "?" not in log_line:
                 return None
 
-            params = re.findall(r'(\w+)=([\d\.\-]+)', log_line)
+            params = re.findall(r"(\w+)=([\d\.\-]+)", log_line)
             param_dict = {k: float(v) for k, v in params}
 
             if not param_dict:
@@ -122,33 +122,36 @@ class FeatureExtractor:
             is_server_error = 1.0 if status >= 500 else 0.0
 
             # Method-based risk scoring
-            method_risk = {"GET": 0.0, "HEAD": 0.0, "POST": 1.0, "PUT": 2.0, "DELETE": 3.0}.get(method, 1.5)
+            method_risk = {"GET": 0.0, "HEAD": 0.0, "POST": 1.0, "PUT": 2.0, "DELETE": 3.0}.get(
+                method, 1.5
+            )
 
             # Map heuristic values to the 20-feature positions:
             # This mapping is approximate — trained models expect true flow data,
             # but these heuristics allow the StandardScaler to produce
             # usable (if noisy) inputs for anomaly detection.
             vector = [
-                dport,                  # dport:        Destination Port
-                uri_len * 1000,         # dur:          Flow Duration (proxy: URI length × 1000µs)
-                1.0 + query_params,     # fpkts:        Total Fwd Packets (1 base + params)
+                dport,  # dport:        Destination Port
+                uri_len * 1000,  # dur:          Flow Duration (proxy: URI length × 1000µs)
+                1.0 + query_params,  # fpkts:        Total Fwd Packets (1 base + params)
                 1.0 if resp_size > 0 else 0.0,  # bpkts: Total Backward Packets
-                uri_len,                # fwd_len:      Total Length of Fwd Packets (URI length)
-                float(resp_size),       # bwd_len:      Total Length of Bwd Packets (response size)
-                uri_len,                # fwd_max:      Fwd Packet Length Max
-                uri_len,                # fwd_pkt_mean: Fwd Packet Length Mean
-                float(resp_size),       # bwd_max:      Bwd Packet Length Max
-                float(resp_size),       # bwd_pkt_mean: Bwd Packet Length Mean
+                uri_len,  # fwd_len:      Total Length of Fwd Packets (URI length)
+                float(resp_size),  # bwd_len:      Total Length of Bwd Packets (response size)
+                uri_len,  # fwd_max:      Fwd Packet Length Max
+                uri_len,  # fwd_pkt_mean: Fwd Packet Length Mean
+                float(resp_size),  # bwd_max:      Bwd Packet Length Max
+                float(resp_size),  # bwd_pkt_mean: Bwd Packet Length Mean
                 float(resp_size + uri_len),  # byte_rate: Flow Bytes/s (total bytes)
-                2.0 + query_params,     # pkt_rate:     Flow Packets/s
-                500.0 * (1 + is_error), # iat_mean:     Flow IAT Mean (error = longer IAT heuristic)
-                100.0 * method_risk,    # iat_std:      Flow IAT Std
-                10.0,                   # iat_min:      Flow IAT Min
-                500.0,                  # fwd_iat_mean: Fwd IAT Mean
-                10.0,                   # fwd_iat_min:  Fwd IAT Min
-                1.0,                    # syn_cnt:      SYN Flag Count (1 per connection)
-                is_server_error,        # rst_cnt:      RST Flag Count (server errors may RST)
-                65535.0,                # init_win_fwd: Init Window bytes (default max)
+                2.0 + query_params,  # pkt_rate:     Flow Packets/s
+                500.0
+                * (1 + is_error),  # iat_mean:     Flow IAT Mean (error = longer IAT heuristic)
+                100.0 * method_risk,  # iat_std:      Flow IAT Std
+                10.0,  # iat_min:      Flow IAT Min
+                500.0,  # fwd_iat_mean: Fwd IAT Mean
+                10.0,  # fwd_iat_min:  Fwd IAT Min
+                1.0,  # syn_cnt:      SYN Flag Count (1 per connection)
+                is_server_error,  # rst_cnt:      RST Flag Count (server errors may RST)
+                65535.0,  # init_win_fwd: Init Window bytes (default max)
             ]
 
             return np.array([vector])

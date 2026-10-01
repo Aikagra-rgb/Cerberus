@@ -47,36 +47,21 @@ log = get_logger(__name__)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
-    "cerberus_http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "status"]
+    "cerberus_http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
 )
 REQUEST_LATENCY = Histogram(
     "cerberus_http_request_duration_seconds",
     "HTTP request latency in seconds",
-    ["method", "endpoint"]
+    ["method", "endpoint"],
 )
-ACTIVE_ALERTS = Gauge(
-    "cerberus_active_alerts",
-    "Current number of active alerts"
-)
-BLOCKED_IPS = Gauge(
-    "cerberus_blocked_ips",
-    "Current number of blocked IPs"
-)
-AI_BRAINS_LOADED = Gauge(
-    "cerberus_ai_brains_loaded",
-    "Number of AI models loaded"
-)
+ACTIVE_ALERTS = Gauge("cerberus_active_alerts", "Current number of active alerts")
+BLOCKED_IPS = Gauge("cerberus_blocked_ips", "Current number of blocked IPs")
+AI_BRAINS_LOADED = Gauge("cerberus_ai_brains_loaded", "Number of AI models loaded")
 PIPELINE_LATENCY = Histogram(
-    "cerberus_pipeline_duration_seconds",
-    "Multi-agent pipeline latency in seconds",
-    ["agent"]
+    "cerberus_pipeline_duration_seconds", "Multi-agent pipeline latency in seconds", ["agent"]
 )
 PIPELINE_STATUS = Counter(
-    "cerberus_pipeline_status_total",
-    "Multi-agent pipeline completion status",
-    ["agent", "status"]
+    "cerberus_pipeline_status_total", "Multi-agent pipeline completion status", ["agent", "status"]
 )
 
 app = FastAPI(
@@ -85,7 +70,7 @@ app = FastAPI(
     description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
 )
 
-# CORS: read from env var for cloud (Vercel) + keep localhost for dev
+# CORS: read from env var for cloud + keep localhost for dev
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "")
 _cloud_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 _default_origins = [
@@ -96,10 +81,14 @@ _default_origins = [
 ]
 _allowed_origins = list(set(_default_origins + _cloud_origins))
 
+# Only allow specific Vercel domains from env, not all subdomains
+_vercel_domains = os.getenv("VERCEL_DOMAINS", "")
+_vercel_origins = [o.strip() for o in _vercel_domains.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origins=_allowed_origins + _vercel_origins,
+    # allow_origin_regex removed - use VERCEL_DOMAINS env var for specific domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -110,20 +99,16 @@ app.add_middleware(
 @app.middleware("http")
 async def metrics_middleware(request, call_next):
     import time
+
     start_time = time.time()
     response = await call_next(request)
     duration = time.time() - start_time
 
     # Record metrics
     REQUEST_COUNT.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        status=response.status_code
+        method=request.method, endpoint=request.url.path, status=response.status_code
     ).inc()
-    REQUEST_LATENCY.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
+    REQUEST_LATENCY.labels(method=request.method, endpoint=request.url.path).observe(duration)
 
     return response
 
@@ -132,6 +117,7 @@ async def metrics_middleware(request, call_next):
 async def metrics():
     """Prometheus metrics endpoint."""
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 detector = DetectionService()
 _orchestrator = MultiAgentOrchestrator()
@@ -169,8 +155,8 @@ def _validate_ipv4(ip: str) -> str:
 
 # Simple in-memory rate limiter for login attempts
 _login_attempts: dict[str, list[float]] = defaultdict(list)
-LOGIN_RATE_LIMIT = 5        # max attempts
-LOGIN_RATE_WINDOW = 300.0   # per 5-minute window
+LOGIN_RATE_LIMIT = 5  # max attempts
+LOGIN_RATE_WINDOW = 300.0  # per 5-minute window
 
 
 class UnblockIPRequest(BaseModel):
@@ -183,9 +169,9 @@ class DeployFirewallRequest(BaseModel):
 
 class MultiAgentTriageRequest(BaseModel):
     threat_type: str = Field(..., min_length=1)
-    source_ip:   str = Field(..., min_length=7, max_length=15)
-    details:     str = Field(default="")
-    log_line:    str = Field(default="")
+    source_ip: str = Field(..., min_length=7, max_length=15)
+    details: str = Field(default="")
+    log_line: str = Field(default="")
 
 
 # ==========================================
@@ -215,8 +201,7 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     """Dependency validator restricting endpoint strictly to ADMINISTRATOR role."""
     if user["role"] != "ADMIN":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Action restricted to Administrator role"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Action restricted to Administrator role"
         )
     return user
 
@@ -233,7 +218,9 @@ async def startup():
     AI_BRAINS_LOADED.set(len(detector.ai_engine.models))
     blocked_list = list_blocked_ips()
     BLOCKED_IPS.set(len(blocked_list))
-    log.info("cerberus_ready", ai_brains=len(detector.ai_engine.models), blocked_ips=len(blocked_list))
+    log.info(
+        "cerberus_ready", ai_brains=len(detector.ai_engine.models), blocked_ips=len(blocked_list)
+    )
 
 
 @app.on_event("shutdown")
@@ -272,7 +259,11 @@ async def ready():
     else:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "not_ready", "database": "ok" if db_ok else "failed", "ai": "ok" if ai_ok else "failed"}
+            detail={
+                "status": "not_ready",
+                "database": "ok" if db_ok else "failed",
+                "ai": "ok" if ai_ok else "failed",
+            },
         )
 
 
@@ -296,7 +287,7 @@ def login(payload: LoginRequest):
         log.warning("login_rate_limited", username=key)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many login attempts. Try again in 5 minutes."
+            detail="Too many login attempts. Try again in 5 minutes.",
         )
 
     user = authenticate_user(payload.username, payload.password)
@@ -304,19 +295,14 @@ def login(payload: LoginRequest):
         _login_attempts[key].append(now)
         log.warning("login_failed", username=key)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
 
     # Clear failed attempts on successful login
     _login_attempts.pop(key, None)
     token = create_session(user["username"])
     log.info("login_success", username=user["username"], role=user["role"])
-    return {
-        "token": token,
-        "username": user["username"],
-        "role": user["role"]
-    }
+    return {"token": token, "username": user["username"], "role": user["role"]}
 
 
 @app.post("/api/auth/logout")
@@ -351,7 +337,12 @@ def ingest_log(payload: LogIngestRequest, user: dict = Depends(require_admin)):
 @app.post("/api/logs/batch")
 def ingest_logs(payload: BatchLogIngestRequest, user: dict = Depends(require_admin)):
     """Ingests a batch of log lines. Restricted to ADMIN users."""
-    log.info("log_ingest_batch", source=payload.source, line_count=len(payload.lines), user=user["username"])
+    log.info(
+        "log_ingest_batch",
+        source=payload.source,
+        line_count=len(payload.lines),
+        user=user["username"],
+    )
     results = []
     total_alerts = 0
     for line in payload.lines:
@@ -378,7 +369,13 @@ def get_alerts(
     user: dict = Depends(get_current_user),
 ):
     """Retrieves threat alerts. Open to authenticated ANALYST or ADMIN users."""
-    log.debug("alerts_list", user=user["username"], limit=limit, threat_type=threat_type, source_ip=source_ip)
+    log.debug(
+        "alerts_list",
+        user=user["username"],
+        limit=limit,
+        threat_type=threat_type,
+        source_ip=source_ip,
+    )
     alerts = list_alerts(limit=limit, newest_first=newest_first)
     ACTIVE_ALERTS.set(len(alerts))
     if threat_type:
@@ -432,7 +429,7 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid IPv4 address format: '{payload.ip}'"
+            detail=f"Invalid IPv4 address format: '{payload.ip}'",
         )
 
     system_os = platform.system().upper()
@@ -440,9 +437,11 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
     # SECURITY FIX: Use argument lists instead of shell=True to prevent injection
     if "WINDOWS" in system_os:
         cmd_args = [
-            "powershell", "-NoProfile", "-Command",
+            "powershell",
+            "-NoProfile",
+            "-Command",
             f"New-NetFirewallRule -DisplayName 'Block Cerberus Attacker {ip}' "
-            f"-Direction Inbound -Action Block -RemoteAddress {ip}"
+            f"-Direction Inbound -Action Block -RemoteAddress {ip}",
         ]
         cmd_display = f"New-NetFirewallRule -DisplayName 'Block Cerberus Attacker {ip}' -Direction Inbound -Action Block -RemoteAddress {ip}"
     else:
@@ -453,14 +452,30 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
         # SECURITY FIX: shell=False with argument list — no injection possible
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=15.0)
         if result.returncode == 0:
-            return {"success": True, "message": f"Firewall rule deployed to block {ip}", "command": cmd_display}
+            return {
+                "success": True,
+                "message": f"Firewall rule deployed to block {ip}",
+                "command": cmd_display,
+            }
         else:
             stderr_msg = result.stderr.strip()
-            if "Access is denied" in stderr_msg or "PermissionDenied" in stderr_msg or "System Error 5" in stderr_msg:
+            if (
+                "Access is denied" in stderr_msg
+                or "PermissionDenied" in stderr_msg
+                or "System Error 5" in stderr_msg
+            ):
                 stderr_msg += " | TIP: Run your backend FastAPI server in an elevated (Administrator) command prompt to allow Windows Defender Firewall modifications."
-            return {"success": False, "message": f"Deployment failed: {stderr_msg}", "command": cmd_display}
+            return {
+                "success": False,
+                "message": f"Deployment failed: {stderr_msg}",
+                "command": cmd_display,
+            }
     except subprocess.TimeoutExpired:
-        return {"success": False, "message": "Deployment failed: Command timed out. PowerShell took too long to load security modules.", "command": cmd_display}
+        return {
+            "success": False,
+            "message": "Deployment failed: Command timed out. PowerShell took too long to load security modules.",
+            "command": cmd_display,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Firewall execution failed: {str(e)}")
 
@@ -486,12 +501,14 @@ def get_model_analytics(user: dict = Depends(get_current_user)):
             "recall": 0.0,
             "f1_score": 0.0,
             "confusion_matrix": {"tn": 0, "fp": 0, "fn": 0, "tp": 0},
-            "feature_importances": {}
+            "feature_importances": {},
         }
 
         if os.path.exists(model_file):
             model_data["trained"] = True
-            model_data["trained_at"] = datetime.fromtimestamp(os.path.getmtime(model_file)).strftime("%Y-%m-%d %H:%M:%S")
+            model_data["trained_at"] = datetime.fromtimestamp(
+                os.path.getmtime(model_file)
+            ).strftime("%Y-%m-%d %H:%M:%S")
 
         if os.path.exists(metrics_file):
             try:
@@ -503,10 +520,7 @@ def get_model_analytics(user: dict = Depends(get_current_user)):
 
         analytics[model_type] = model_data
 
-    return {
-        "brains_loaded": len(detector.ai_engine.models),
-        "analytics": analytics
-    }
+    return {"brains_loaded": len(detector.ai_engine.models), "analytics": analytics}
 
 
 # ==========================================
@@ -522,7 +536,12 @@ def multi_agent_triage(
     Triage (DeepSeek) -> Research (MITRE RAG + DeepSeek) ->
     Remediation (Nemotron) -> Guardrail (DeepSeek) -> Verified Output.
     """
-    log.info("pipeline_start", threat_type=payload.threat_type, source_ip=payload.source_ip, user=user["username"])
+    log.info(
+        "pipeline_start",
+        threat_type=payload.threat_type,
+        source_ip=payload.source_ip,
+        user=user["username"],
+    )
     pipeline_start = time.time()
     try:
         result = _orchestrator.run(
@@ -541,19 +560,18 @@ def multi_agent_triage(
             PIPELINE_LATENCY.labels(agent=agent_name).observe(latency_ms / 1000.0)
             PIPELINE_STATUS.labels(agent=agent_name, status=agent_status).inc()
 
-        log.info("pipeline_complete",
-                 threat_type=payload.threat_type,
-                 source_ip=payload.source_ip,
-                 total_latency_ms=total_ms,
-                 approved=result.get("approved", False),
-                 verdict=result.get("final_verdict", "UNKNOWN"))
+        log.info(
+            "pipeline_complete",
+            threat_type=payload.threat_type,
+            source_ip=payload.source_ip,
+            total_latency_ms=total_ms,
+            approved=result.get("approved", False),
+            verdict=result.get("final_verdict", "UNKNOWN"),
+        )
         return result
     except Exception as exc:
         log.error("pipeline_failed", threat_type=payload.threat_type, error=str(exc))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Multi-agent pipeline failed: {str(exc)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Multi-agent pipeline failed: {str(exc)}")
 
 
 @app.get("/api/threat-intel/mitre")
@@ -568,12 +586,14 @@ def mitre_search(
     """
     rag = get_rag_engine()
     if not rag.ready:
-        raise HTTPException(status_code=503, detail="MITRE RAG engine not ready. Check data/mitre_attack.json.")
+        raise HTTPException(
+            status_code=503, detail="MITRE RAG engine not ready. Check data/mitre_attack.json."
+        )
     results = rag.search(q, top_k=top_k)
     return {
-        "query":           q,
+        "query": q,
         "total_techniques": rag.technique_count,
-        "results":         results,
+        "results": results,
     }
 
 
@@ -581,12 +601,23 @@ def mitre_search(
 # WEB SOCKETS
 # ==========================================
 @app.websocket("/api/live-alerts")
-async def live_alerts(websocket: WebSocket, token: str | None = Query(None)):
-    """WebSocket stream for real-time alerts. Authenticates via token query parameter."""
+async def live_alerts(
+    websocket: WebSocket,
+    token: str | None = Query(None),
+    authorization: str | None = Header(None),
+):
+    """
+    WebSocket stream for real-time alerts.
+    Authenticates via Authorization header (preferred) or token query parameter (legacy).
+    """
     await websocket.accept()
 
+    # Prefer Authorization header (Bearer token) over query param
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1].strip()
+
     if not token:
-        await websocket.send_json({"error": "Unauthorized: Missing token query parameter"})
+        await websocket.send_json({"error": "Unauthorized: Missing token (use Authorization header or token query param)"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -604,10 +635,14 @@ async def live_alerts(websocket: WebSocket, token: str | None = Query(None)):
                 for alert in alerts:
                     # Unpack JSON strings if present in detail
                     if alert.get("ai_report") and isinstance(alert["ai_report"], str):
-                        try: alert["ai_report"] = json.loads(alert["ai_report"])
-                        except Exception: pass
+                        try:
+                            alert["ai_report"] = json.loads(alert["ai_report"])
+                        except Exception:
+                            pass
                 await websocket.send_json({"alert_count": len(alerts), "alerts": alerts})
             else:
-                await websocket.send_json({"error": "Permission denied: Log ingestion restricted to Admin"})
+                await websocket.send_json(
+                    {"error": "Permission denied: Log ingestion restricted to Admin"}
+                )
     except WebSocketDisconnect:
         return

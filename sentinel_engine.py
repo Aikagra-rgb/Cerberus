@@ -7,14 +7,10 @@ from datetime import datetime
 from src.alert_store import init_db
 from src.config import DATA_DIR
 from src.detection_service import (
-    AIEngine,
     DetectionService,
-    SIGNATURE_FILE,
-    SignatureEngine,
     make_alert,
     persist_alert,
 )
-
 
 WEB_LOG_FILE = os.path.join(DATA_DIR, "demo_access.log")
 AUTH_LOG_FILE = os.path.join(DATA_DIR, "demo_auth.log")
@@ -137,7 +133,7 @@ def monitor_log_file(path, detector, label):
 
             current_size = os.path.getsize(path)
             if current_size > last_pos:
-                with open(path, "r", errors="ignore") as f:
+                with open(path, errors="ignore") as f:
                     f.seek(last_pos)
                     lines = f.readlines()
                     last_pos = f.tell()
@@ -188,7 +184,9 @@ if __name__ == "__main__":
             f"Active Brains: {list(detector.ai_engine.models.keys())}{Colors.RESET}"
         )
     else:
-        print(f"{Colors.RED}[WARN] No AI Brains loaded. Run 'python trainer.py --type all'.{Colors.RESET}")
+        print(
+            f"{Colors.RED}[WARN] No AI Brains loaded. Run 'python trainer.py --type all'.{Colors.RESET}"
+        )
 
     t_web = threading.Thread(target=monitor_web_logs, args=(detector,), daemon=True)
     t_auth = threading.Thread(target=monitor_auth_logs, args=(detector,), daemon=True)

@@ -55,24 +55,26 @@ def run(triage_result: dict, threat_type: str, source_ip: str, details: str) -> 
     rag = get_rag_engine()
 
     # Build RAG search query from triage result
-    query = " ".join([
-        triage_result.get("attack_class", threat_type),
-        triage_result.get("attack_vector", ""),
-        " ".join(triage_result.get("affected_assets", [])),
-        details,
-    ])
+    query = " ".join(
+        [
+            triage_result.get("attack_class", threat_type),
+            triage_result.get("attack_vector", ""),
+            " ".join(triage_result.get("affected_assets", [])),
+            details,
+        ]
+    )
 
     mitre_results = rag.search(query, top_k=5)
     mitre_context = rag.format_for_prompt(mitre_results)
 
     user_prompt = f"""
 === INCIDENT TRIAGE SUMMARY ===
-Attack Class   : {triage_result.get('attack_class', threat_type)}
-Severity       : {triage_result.get('severity', 'HIGH')}
+Attack Class   : {triage_result.get("attack_class", threat_type)}
+Severity       : {triage_result.get("severity", "HIGH")}
 Source IP      : {source_ip}
-Attack Vector  : {triage_result.get('attack_vector', details)}
-Affected Assets: {', '.join(triage_result.get('affected_assets', ['Unknown']))}
-Blast Radius   : {triage_result.get('blast_radius', 'Unknown')}
+Attack Vector  : {triage_result.get("attack_vector", details)}
+Affected Assets: {", ".join(triage_result.get("affected_assets", ["Unknown"]))}
+Blast Radius   : {triage_result.get("blast_radius", "Unknown")}
 
 === MITRE ATT&CK RAG CONTEXT (Top Matches) ===
 {mitre_context}
@@ -99,10 +101,12 @@ Based on the above, produce a structured threat intelligence report as JSON.
                 }
                 for t in mitre_results[:3]
             ]
-        result.setdefault("threat_actor_context",   "Unknown — no specific threat actor attribution.")
-        result.setdefault("attack_lifecycle_stage",  "Initial Access")
-        result.setdefault("key_indicators",          [source_ip, threat_type])
-        result.setdefault("intelligence_summary",    f"Attack of type '{threat_type}' from {source_ip}.")
+        result.setdefault("threat_actor_context", "Unknown — no specific threat actor attribution.")
+        result.setdefault("attack_lifecycle_stage", "Initial Access")
+        result.setdefault("key_indicators", [source_ip, threat_type])
+        result.setdefault(
+            "intelligence_summary", f"Attack of type '{threat_type}' from {source_ip}."
+        )
         return result
     except Exception as exc:
         return {
@@ -115,9 +119,9 @@ Based on the above, produce a structured threat intelligence report as JSON.
                 }
                 for t in mitre_results[:3]
             ],
-            "threat_actor_context":   "LLM unavailable — RAG fallback results shown.",
+            "threat_actor_context": "LLM unavailable — RAG fallback results shown.",
             "attack_lifecycle_stage": "Initial Access",
-            "key_indicators":         [source_ip],
-            "intelligence_summary":   f"'{threat_type}' from {source_ip}. LLM enrichment unavailable.",
-            "error":                  str(exc),
+            "key_indicators": [source_ip],
+            "intelligence_summary": f"'{threat_type}' from {source_ip}. LLM enrichment unavailable.",
+            "error": str(exc),
         }

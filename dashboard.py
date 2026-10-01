@@ -1,15 +1,13 @@
 import os
 import time
-import glob
 from html import escape
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-
 from src.alert_store import ALERT_COLUMNS, list_alerts, migrate_legacy_csv
-from src.config import DATA_DIR, MODELS_DIR, MODEL_CONFIGS
+from src.config import DATA_DIR, MODEL_CONFIGS, MODELS_DIR
 
 # ==========================================
 # CONFIGURATION
@@ -42,12 +40,12 @@ SEVERITY_COLORS = {
 
 # Brain display metadata
 BRAIN_META = {
-    "web":          {"icon": "🌐", "label": "Web Attacks"},
-    "auth":         {"icon": "🔑", "label": "Brute Force"},
-    "dos":          {"icon": "💥", "label": "DoS Floods"},
-    "recon":        {"icon": "🔍", "label": "Port Scans"},
-    "ddos":         {"icon": "🌊", "label": "DDoS LOIC"},
-    "botnet":       {"icon": "🤖", "label": "Botnet C2"},
+    "web": {"icon": "🌐", "label": "Web Attacks"},
+    "auth": {"icon": "🔑", "label": "Brute Force"},
+    "dos": {"icon": "💥", "label": "DoS Floods"},
+    "recon": {"icon": "🔍", "label": "Port Scans"},
+    "ddos": {"icon": "🌊", "label": "DDoS LOIC"},
+    "botnet": {"icon": "🤖", "label": "Botnet C2"},
     "infiltration": {"icon": "🕵️", "label": "Infiltration"},
 }
 
@@ -55,16 +53,14 @@ BRAIN_META = {
 # PAGE CONFIG
 # ==========================================
 st.set_page_config(
-    page_title=PAGE_TITLE,
-    page_icon=PAGE_ICON,
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout="wide", initial_sidebar_state="expanded"
 )
 
 # ==========================================
 # PREMIUM CSS
 # ==========================================
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* ── Import Google Font ── */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -299,7 +295,9 @@ st.markdown("""
         overflow: hidden;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ==========================================
@@ -310,7 +308,7 @@ def load_data():
     try:
         migrate_legacy_csv(LEGACY_EVIDENCE_FILE)
         df = pd.DataFrame(list_alerts(), columns=ALERT_COLUMNS)
-        df.dropna(how='all', inplace=True)
+        df.dropna(how="all", inplace=True)
         return df
     except Exception:
         return pd.DataFrame(columns=ALERT_COLUMNS)
@@ -333,8 +331,8 @@ def get_brain_status():
 def count_by_severity(df):
     """Counts alerts grouped by severity."""
     counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
-    if 'Type' in df.columns:
-        for t in df['Type']:
+    if "Type" in df.columns:
+        for t in df["Type"]:
             sev = get_severity(t)
             counts[sev] = counts.get(sev, 0) + 1
     return counts
@@ -365,7 +363,8 @@ def html_escape(value):
 # ==========================================
 with st.sidebar:
     # Logo area
-    st.markdown("""
+    st.markdown(
+        """
     <div style="text-align:center; padding: 16px 0 8px 0;">
         <div style="font-size:36px;">🛡️</div>
         <div style="font-size:18px; font-weight:800; 
@@ -376,7 +375,9 @@ with st.sidebar:
              letter-spacing:2px; text-transform:uppercase; margin-top:2px;">
              SOC DASHBOARD v5.0</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
@@ -390,12 +391,12 @@ with st.sidebar:
     st.markdown("## 🔎 Filters")
     initial_df = load_data()
     threat_types = ["All"]
-    if 'Type' in initial_df.columns and not initial_df.empty:
-        threat_types.extend(sorted(initial_df['Type'].unique().tolist()))
-    filter_type = st.selectbox("Threat Type", threat_types, key='filter_select')
+    if "Type" in initial_df.columns and not initial_df.empty:
+        threat_types.extend(sorted(initial_df["Type"].unique().tolist()))
+    filter_type = st.selectbox("Threat Type", threat_types, key="filter_select")
 
     severity_options = ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
-    filter_severity = st.selectbox("Severity", severity_options, key='sev_filter')
+    filter_severity = st.selectbox("Severity", severity_options, key="sev_filter")
 
     st.markdown("---")
 
@@ -409,31 +410,37 @@ with st.sidebar:
         status_text = "ONLINE" if is_online else "OFFLINE"
         brain_html += f"""
         <div class="brain-chip {css_class}">
-            <div class="brain-icon">{meta['icon']}</div>
-            <div class="brain-name">{meta['label']}</div>
+            <div class="brain-icon">{meta["icon"]}</div>
+            <div class="brain-name">{meta["label"]}</div>
             <div class="brain-status">● {status_text}</div>
         </div>"""
-    brain_html += '</div>'
+    brain_html += "</div>"
     st.markdown(brain_html, unsafe_allow_html=True)
 
     online_count = sum(1 for v in brain_status.values() if v)
     total_count = len(brain_status)
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="text-align:center; margin-top:12px; font-size:11px; color:#64748b;">
         {online_count}/{total_count} Brains Active
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 # ==========================================
 # MAIN HEADER
 # ==========================================
-st.markdown("""
+st.markdown(
+    """
 <div class="soc-header">
     <h1>🛡️ Cerberus Security Operations Center</h1>
     <p>Real-time hybrid intrusion detection — Signature Engine + Multi-Brain AI Classifier + File Integrity Monitor</p>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ==========================================
 # MAIN DASHBOARD LOOP
@@ -447,19 +454,21 @@ while True:
         # 1. Load & Filter Data
         df = load_data()
 
-        if filter_type != "All" and 'Type' in df.columns and not df.empty:
+        if filter_type != "All" and "Type" in df.columns and not df.empty:
             df = df[df["Type"] == filter_type]
 
-        if filter_severity != "All" and 'Type' in df.columns and not df.empty:
-            df = df[df['Type'].apply(get_severity) == filter_severity]
+        if filter_severity != "All" and "Type" in df.columns and not df.empty:
+            df = df[df["Type"].apply(get_severity) == filter_severity]
 
         # 2. Calculate KPIs
         total_alerts = len(df)
-        unique_attackers = df['Source IP'].nunique() if 'Source IP' in df.columns and not df.empty else 0
+        unique_attackers = (
+            df["Source IP"].nunique() if "Source IP" in df.columns and not df.empty else 0
+        )
 
-        if 'Type' in df.columns and not df.empty:
-            most_common_threat = df['Type'].mode()[0] if not df['Type'].mode().empty else "None"
-            last_seen = df.iloc[-1]['Timestamp'] if 'Timestamp' in df.columns else "--"
+        if "Type" in df.columns and not df.empty:
+            most_common_threat = df["Type"].mode()[0] if not df["Type"].mode().empty else "None"
+            last_seen = df.iloc[-1]["Timestamp"] if "Timestamp" in df.columns else "--"
         else:
             most_common_threat = "None"
             last_seen = "--"
@@ -471,53 +480,73 @@ while True:
         k1, k2, k3, k4, k5, k6 = st.columns(6)
 
         with k1:
-            color_class = "critical" if total_alerts > 50 else ("warning" if total_alerts > 10 else "info")
-            st.markdown(f"""
+            color_class = (
+                "critical" if total_alerts > 50 else ("warning" if total_alerts > 10 else "info")
+            )
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">🚨</div>
                 <div class="kpi-value {color_class}">{total_alerts}</div>
                 <div class="kpi-label">Total Alerts</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         with k2:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">👤</div>
                 <div class="kpi-value info">{unique_attackers}</div>
                 <div class="kpi-label">Unique Attackers</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         with k3:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">⚠️</div>
-                <div class="kpi-value critical">{sev_counts['CRITICAL']}</div>
+                <div class="kpi-value critical">{sev_counts["CRITICAL"]}</div>
                 <div class="kpi-label">Critical</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         with k4:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">🔶</div>
-                <div class="kpi-value warning">{sev_counts['HIGH']}</div>
+                <div class="kpi-value warning">{sev_counts["HIGH"]}</div>
                 <div class="kpi-label">High</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         with k5:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">🔥</div>
                 <div class="kpi-value" style="font-size:16px; color:#e2e8f0;">{most_common_threat}</div>
                 <div class="kpi-label">Top Threat</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         with k6:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="kpi-card">
                 <div class="kpi-icon">🕒</div>
                 <div class="kpi-value" style="font-size:18px; color:#94a3b8;">{last_alert_time}</div>
                 <div class="kpi-label">Last Incident</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""",
+                unsafe_allow_html=True,
+            )
 
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -526,81 +555,104 @@ while True:
             chart1, chart2 = st.columns(2)
 
             with chart1:
-                st.markdown("""
+                st.markdown(
+                    """
                 <div class="panel-title">
                     <span class="dot dot-purple"></span> Threat Distribution
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
-                if 'Type' in df.columns:
-                    type_counts = df['Type'].value_counts().reset_index()
-                    type_counts.columns = ['Type', 'Count']
+                if "Type" in df.columns:
+                    type_counts = df["Type"].value_counts().reset_index()
+                    type_counts.columns = ["Type", "Count"]
 
-                    fig_donut = go.Figure(go.Pie(
-                        labels=type_counts['Type'],
-                        values=type_counts['Count'],
-                        hole=0.55,
-                        marker=dict(
-                            colors=['#ff1744', '#ff9100', '#ffd600', '#00e676',
-                                    '#06b6d4', '#8b5cf6', '#ec4899', '#f97316'],
-                            line=dict(color='#0f172a', width=2)
-                        ),
-                        textinfo='label+percent',
-                        textfont=dict(size=11, color='#e2e8f0'),
-                        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Share: %{percent}<extra></extra>'
-                    ))
+                    fig_donut = go.Figure(
+                        go.Pie(
+                            labels=type_counts["Type"],
+                            values=type_counts["Count"],
+                            hole=0.55,
+                            marker=dict(
+                                colors=[
+                                    "#ff1744",
+                                    "#ff9100",
+                                    "#ffd600",
+                                    "#00e676",
+                                    "#06b6d4",
+                                    "#8b5cf6",
+                                    "#ec4899",
+                                    "#f97316",
+                                ],
+                                line=dict(color="#0f172a", width=2),
+                            ),
+                            textinfo="label+percent",
+                            textfont=dict(size=11, color="#e2e8f0"),
+                            hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Share: %{percent}<extra></extra>",
+                        )
+                    )
                     fig_donut.update_layout(
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#94a3b8', family='Inter'),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color="#94a3b8", family="Inter"),
                         showlegend=False,
                         margin=dict(t=10, l=10, r=10, b=10),
                         height=320,
-                        annotations=[dict(
-                            text=f'<b>{total_alerts}</b><br><span style="font-size:10px">ALERTS</span>',
-                            x=0.5, y=0.5, font_size=24, font_color='#e2e8f0',
-                            showarrow=False
-                        )]
+                        annotations=[
+                            dict(
+                                text=f'<b>{total_alerts}</b><br><span style="font-size:10px">ALERTS</span>',
+                                x=0.5,
+                                y=0.5,
+                                font_size=24,
+                                font_color="#e2e8f0",
+                                showarrow=False,
+                            )
+                        ],
                     )
                     st.plotly_chart(fig_donut, use_container_width=True, key=f"donut_{unique_key}")
 
             with chart2:
-                st.markdown("""
+                st.markdown(
+                    """
                 <div class="panel-title">
                     <span class="dot dot-red"></span> Top Attacker IPs
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
-                if 'Source IP' in df.columns:
-                    ip_counts = df['Source IP'].value_counts().head(8).reset_index()
-                    ip_counts.columns = ['IP', 'Count']
+                if "Source IP" in df.columns:
+                    ip_counts = df["Source IP"].value_counts().head(8).reset_index()
+                    ip_counts.columns = ["IP", "Count"]
 
-                    fig_bar = go.Figure(go.Bar(
-                        x=ip_counts['Count'],
-                        y=ip_counts['IP'],
-                        orientation='h',
-                        marker=dict(
-                            color=ip_counts['Count'],
-                            colorscale=[[0, '#1e3a5f'], [0.5, '#06b6d4'], [1, '#ff1744']],
-                            line=dict(width=0),
-                            cornerradius=6,
-                        ),
-                        hovertemplate='<b>%{y}</b><br>Alerts: %{x}<extra></extra>',
-                        text=ip_counts['Count'],
-                        textposition='outside',
-                        textfont=dict(color='#94a3b8', size=11),
-                    ))
+                    fig_bar = go.Figure(
+                        go.Bar(
+                            x=ip_counts["Count"],
+                            y=ip_counts["IP"],
+                            orientation="h",
+                            marker=dict(
+                                color=ip_counts["Count"],
+                                colorscale=[[0, "#1e3a5f"], [0.5, "#06b6d4"], [1, "#ff1744"]],
+                                line=dict(width=0),
+                                cornerradius=6,
+                            ),
+                            hovertemplate="<b>%{y}</b><br>Alerts: %{x}<extra></extra>",
+                            text=ip_counts["Count"],
+                            textposition="outside",
+                            textfont=dict(color="#94a3b8", size=11),
+                        )
+                    )
                     fig_bar.update_layout(
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#94a3b8', family='Inter'),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color="#94a3b8", family="Inter"),
                         margin=dict(t=10, l=10, r=40, b=10),
                         height=320,
                         yaxis=dict(
-                            autorange='reversed',
-                            gridcolor='rgba(100,116,139,0.08)',
-                            tickfont=dict(family='Courier New', size=11, color='#06b6d4'),
+                            autorange="reversed",
+                            gridcolor="rgba(100,116,139,0.08)",
+                            tickfont=dict(family="Courier New", size=11, color="#06b6d4"),
                         ),
                         xaxis=dict(
-                            gridcolor='rgba(100,116,139,0.08)',
+                            gridcolor="rgba(100,116,139,0.08)",
                             showticklabels=False,
                         ),
                         bargap=0.25,
@@ -611,91 +663,117 @@ while True:
             sev_col, timeline_col = st.columns([1, 2])
 
             with sev_col:
-                st.markdown("""
+                st.markdown(
+                    """
                 <div class="panel-title">
                     <span class="dot dot-cyan"></span> Severity Breakdown
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
-                sev_data = pd.DataFrame([
-                    {"Severity": k, "Count": v, "Color": SEVERITY_COLORS[k]}
-                    for k, v in sev_counts.items() if v > 0
-                ])
+                sev_data = pd.DataFrame(
+                    [
+                        {"Severity": k, "Count": v, "Color": SEVERITY_COLORS[k]}
+                        for k, v in sev_counts.items()
+                        if v > 0
+                    ]
+                )
 
                 if not sev_data.empty:
-                    fig_sev = go.Figure(go.Bar(
-                        x=sev_data['Severity'],
-                        y=sev_data['Count'],
-                        marker=dict(
-                            color=sev_data['Color'].tolist(),
-                            cornerradius=8,
-                            line=dict(width=0),
-                        ),
-                        text=sev_data['Count'],
-                        textposition='outside',
-                        textfont=dict(color='#e2e8f0', size=14, family='Inter'),
-                        hovertemplate='<b>%{x}</b><br>Count: %{y}<extra></extra>',
-                    ))
+                    fig_sev = go.Figure(
+                        go.Bar(
+                            x=sev_data["Severity"],
+                            y=sev_data["Count"],
+                            marker=dict(
+                                color=sev_data["Color"].tolist(),
+                                cornerradius=8,
+                                line=dict(width=0),
+                            ),
+                            text=sev_data["Count"],
+                            textposition="outside",
+                            textfont=dict(color="#e2e8f0", size=14, family="Inter"),
+                            hovertemplate="<b>%{x}</b><br>Count: %{y}<extra></extra>",
+                        )
+                    )
                     fig_sev.update_layout(
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#94a3b8', family='Inter'),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color="#94a3b8", family="Inter"),
                         margin=dict(t=10, l=10, r=10, b=10),
                         height=250,
-                        xaxis=dict(gridcolor='rgba(0,0,0,0)', tickfont=dict(size=10, color='#94a3b8')),
-                        yaxis=dict(gridcolor='rgba(100,116,139,0.08)', showticklabels=False),
+                        xaxis=dict(
+                            gridcolor="rgba(0,0,0,0)", tickfont=dict(size=10, color="#94a3b8")
+                        ),
+                        yaxis=dict(gridcolor="rgba(100,116,139,0.08)", showticklabels=False),
                         bargap=0.35,
                     )
                     st.plotly_chart(fig_sev, use_container_width=True, key=f"sev_{unique_key}")
 
             with timeline_col:
-                st.markdown("""
+                st.markdown(
+                    """
                 <div class="panel-title">
                     <span class="dot dot-green"></span> Alert Timeline
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
-                if 'Timestamp' in df.columns and not df.empty:
+                if "Timestamp" in df.columns and not df.empty:
                     df_timeline = df.copy()
-                    df_timeline['Timestamp'] = pd.to_datetime(df_timeline['Timestamp'], errors='coerce')
-                    df_timeline = df_timeline.dropna(subset=['Timestamp'])
+                    df_timeline["Timestamp"] = pd.to_datetime(
+                        df_timeline["Timestamp"], errors="coerce"
+                    )
+                    df_timeline = df_timeline.dropna(subset=["Timestamp"])
 
                     if not df_timeline.empty:
-                        df_timeline['Severity'] = df_timeline['Type'].apply(get_severity)
+                        df_timeline["Severity"] = df_timeline["Type"].apply(get_severity)
                         color_map = SEVERITY_COLORS
 
                         fig_timeline = px.scatter(
                             df_timeline,
-                            x='Timestamp',
-                            y='Type',
-                            color='Severity',
+                            x="Timestamp",
+                            y="Type",
+                            color="Severity",
                             color_discrete_map=color_map,
-                            hover_data=['Source IP', 'Details'],
+                            hover_data=["Source IP", "Details"],
                         )
-                        fig_timeline.update_traces(marker=dict(size=10, opacity=0.85, line=dict(width=1, color='#0f172a')))
+                        fig_timeline.update_traces(
+                            marker=dict(size=10, opacity=0.85, line=dict(width=1, color="#0f172a"))
+                        )
                         fig_timeline.update_layout(
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            font=dict(color='#94a3b8', family='Inter'),
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            font=dict(color="#94a3b8", family="Inter"),
                             margin=dict(t=10, l=10, r=10, b=10),
                             height=250,
-                            xaxis=dict(gridcolor='rgba(100,116,139,0.08)'),
-                            yaxis=dict(gridcolor='rgba(100,116,139,0.08)', tickfont=dict(size=10)),
+                            xaxis=dict(gridcolor="rgba(100,116,139,0.08)"),
+                            yaxis=dict(gridcolor="rgba(100,116,139,0.08)", tickfont=dict(size=10)),
                             showlegend=True,
                             legend=dict(
-                                orientation='h', yanchor='bottom', y=1.02,
-                                font=dict(size=10, color='#94a3b8'),
-                                bgcolor='rgba(0,0,0,0)',
+                                orientation="h",
+                                yanchor="bottom",
+                                y=1.02,
+                                font=dict(size=10, color="#94a3b8"),
+                                bgcolor="rgba(0,0,0,0)",
                             ),
                         )
-                        st.plotly_chart(fig_timeline, use_container_width=True, key=f"timeline_{unique_key}")
+                        st.plotly_chart(
+                            fig_timeline, use_container_width=True, key=f"timeline_{unique_key}"
+                        )
                     else:
-                        st.markdown('<div class="empty-state"><p>Waiting for timestamped data...</p></div>',
-                                    unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="empty-state"><p>Waiting for timestamped data...</p></div>',
+                            unsafe_allow_html=True,
+                        )
 
         # 6. Live Alert Feed
-        st.markdown("""
+        st.markdown(
+            """
         <div class="panel-title" style="margin-top:8px;">
             <span class="dot dot-red"></span> Live Alert Feed
-        </div>""", unsafe_allow_html=True)
+        </div>""",
+            unsafe_allow_html=True,
+        )
 
         if not df.empty:
             # Show last 25 alerts, newest first
@@ -703,15 +781,19 @@ while True:
 
             feed_html = ""
             for _, row in recent.iterrows():
-                ts = str(row.get('Timestamp', '')).split(' ')[-1] if pd.notna(row.get('Timestamp')) else '--'
-                raw_alert_type = str(row.get('Type', 'Unknown'))
+                ts = (
+                    str(row.get("Timestamp", "")).split(" ")[-1]
+                    if pd.notna(row.get("Timestamp"))
+                    else "--"
+                )
+                raw_alert_type = str(row.get("Type", "Unknown"))
                 alert_type = html_escape(raw_alert_type)
-                ip = html_escape(row.get('Source IP', 'Unknown'))
-                detail = html_escape(str(row.get('Details', ''))[:80])
+                ip = html_escape(row.get("Source IP", "Unknown"))
+                detail = html_escape(str(row.get("Details", ""))[:80])
                 sev = get_severity(raw_alert_type)
                 sev_lower = sev.lower()
 
-                type_color = SEVERITY_COLORS.get(sev, '#94a3b8')
+                type_color = SEVERITY_COLORS.get(sev, "#94a3b8")
 
                 feed_html += f"""
                 <div class="alert-row">
@@ -724,7 +806,8 @@ while True:
 
             st.markdown(feed_html, unsafe_allow_html=True)
         else:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="empty-state">
                 <div class="empty-icon">🔒</div>
                 <p>No threats detected. All systems nominal.<br>
@@ -732,14 +815,18 @@ while True:
                     Run <code>python sentinel_engine.py</code> to begin monitoring.
                 </span></p>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         # 7. Full Data Table (collapsible)
         with st.expander("📋 View Full Incident Table", expanded=False):
             if not df.empty:
                 display_df = df.copy()
-                display_df['Severity'] = display_df['Type'].apply(get_severity)
-                display_df = display_df[['Timestamp', 'Severity', 'Type', 'Source IP', 'Location', 'Details']]
+                display_df["Severity"] = display_df["Type"].apply(get_severity)
+                display_df = display_df[
+                    ["Timestamp", "Severity", "Type", "Source IP", "Location", "Details"]
+                ]
                 st.dataframe(
                     display_df.sort_index(ascending=False),
                     use_container_width=True,
@@ -749,7 +836,7 @@ while True:
                         "Type": st.column_config.TextColumn(width="medium"),
                         "Source IP": st.column_config.TextColumn(width="small"),
                         "Details": st.column_config.TextColumn(width="large"),
-                    }
+                    },
                 )
             else:
                 st.info("No data available.")

@@ -1,7 +1,12 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+
+# Set test environment variables before importing detection_service
+os.environ.setdefault("ADMIN_USERNAME", "testadmin")
+os.environ.setdefault("ADMIN_PASSWORD", "TestPass123!")
 
 from src.detection_service import DetectionService, SignatureEngine
 
@@ -69,4 +74,3 @@ class SignatureEngineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

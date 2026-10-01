@@ -56,7 +56,7 @@ def run(
 Threat Type  : {threat_type}
 Source IP    : {source_ip}
 Details      : {details}
-Raw Log Line : {log_line or 'N/A'}
+Raw Log Line : {log_line or "N/A"}
 
 Analyze this alert and return your classification as a JSON object.
 """.strip()
@@ -70,23 +70,23 @@ Analyze this alert and return your classification as a JSON object.
             max_tokens=800,
         )
         # Validate required keys exist
-        result.setdefault("attack_class",    threat_type)
-        result.setdefault("severity",        "HIGH")
-        result.setdefault("attack_vector",   details)
+        result.setdefault("attack_class", threat_type)
+        result.setdefault("severity", "HIGH")
+        result.setdefault("attack_vector", details)
         result.setdefault("affected_assets", ["Web Server"])
-        result.setdefault("blast_radius",    "Unknown — further investigation required.")
-        result.setdefault("confidence",      0.85)
-        result.setdefault("summary",         f"{threat_type} attack detected from {source_ip}.")
+        result.setdefault("blast_radius", "Unknown — further investigation required.")
+        result.setdefault("confidence", 0.85)
+        result.setdefault("summary", f"{threat_type} attack detected from {source_ip}.")
         return result
     except Exception as exc:
         # Structured fallback so Orchestrator never crashes
         return {
-            "attack_class":    threat_type,
-            "severity":        "HIGH",
-            "attack_vector":   details,
+            "attack_class": threat_type,
+            "severity": "HIGH",
+            "attack_vector": details,
             "affected_assets": ["Unknown"],
-            "blast_radius":    "Could not determine — LLM unavailable.",
-            "confidence":      0.5,
-            "summary":         f"{threat_type} detected from {source_ip}. Manual review required.",
-            "error":           str(exc),
+            "blast_radius": "Could not determine — LLM unavailable.",
+            "confidence": 0.5,
+            "summary": f"{threat_type} detected from {source_ip}. Manual review required.",
+            "error": str(exc),
         }

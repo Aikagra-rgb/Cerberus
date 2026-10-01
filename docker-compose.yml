@@ -15,14 +15,38 @@ services:
     cap_add:
       - NET_ADMIN  # Grants required capabilities to run iptables inside the container namespace
     restart: unless-stopped
+    environment:
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - NEMOTRON_API_KEY=${NEMOTRON_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - NVIDIA_BASE_URL=${NVIDIA_BASE_URL}
+      - NEMOTRON_MODEL=${NEMOTRON_MODEL}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS}
+      - LOG_LEVEL=INFO
 
   frontend:
-    image: node:20-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: logsentry_frontend
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
     ports:
-      - "5173:5173"
-    command: node server.mjs
+      - "80:80"
     restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Optional: Nginx reverse proxy for production (single port 80/443)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: logsentry_nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./certs:/etc/nginx/certs:ro
+  #   depends_on:
+  #     - backend
+  #     - frontend

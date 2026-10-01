@@ -49,7 +49,7 @@ def make_alert(threat_type, source_ip, location, details, timestamp=None, ai_rep
         "Source IP": source_ip,
         "Location": classify_location(source_ip, location),
         "Details": details.strip(),
-        "ai_report": ai_report
+        "ai_report": ai_report,
     }
 
 
@@ -73,12 +73,7 @@ def get_threat_severity(threat_type):
 
 def get_score_for_severity(severity):
     """Maps severity level to reputation threat score additions."""
-    SCORE_MAP = {
-        "CRITICAL": 100.0,
-        "HIGH": 65.0,
-        "MEDIUM": 35.0,
-        "LOW": 15.0
-    }
+    SCORE_MAP = {"CRITICAL": 100.0, "HIGH": 65.0, "MEDIUM": 35.0, "LOW": 15.0}
     return SCORE_MAP.get(severity, 35.0)
 
 
@@ -89,7 +84,7 @@ def persist_alert(alert):
         alert["Location"],
         alert["Details"],
         timestamp=alert["Timestamp"],
-        ai_report=json.dumps(alert["ai_report"]) if alert["ai_report"] else None
+        ai_report=json.dumps(alert["ai_report"]) if alert["ai_report"] else None,
     )
 
 
@@ -101,7 +96,7 @@ async def persist_alert_async(alert):
         alert["Location"],
         alert["Details"],
         timestamp=alert["Timestamp"],
-        ai_report=json.dumps(alert["ai_report"]) if alert["ai_report"] else None
+        ai_report=json.dumps(alert["ai_report"]) if alert["ai_report"] else None,
     )
 
 
@@ -172,6 +167,7 @@ class AIEngine:
         if os.path.exists(path):
             try:
                 import joblib
+
                 self.models[name] = joblib.load(path)
             except Exception:
                 pass
@@ -246,8 +242,8 @@ class DetectionService:
                 ai_report=self.triage_agent.generate_triage_report(
                     "Blocked by IPS",
                     ip,
-                    "IP was blacklisted automatically due to cumulative threat score reaching 100."
-                )
+                    "IP was blacklisted automatically due to cumulative threat score reaching 100.",
+                ),
             )
             if persist:
                 persist_alert(blocked_alert)
@@ -261,9 +257,7 @@ class DetectionService:
             # Generate AI Triage Report
             sev = get_threat_severity(signature_alert["Type"])
             triage_report = self.triage_agent.generate_triage_report(
-                signature_alert["Type"],
-                signature_alert["Source IP"],
-                signature_alert["Details"]
+                signature_alert["Type"], signature_alert["Source IP"], signature_alert["Details"]
             )
             signature_alert["ai_report"] = triage_report
             alerts.append(signature_alert)
@@ -282,9 +276,7 @@ class DetectionService:
         for alert in ai_alerts:
             sev = get_threat_severity(alert["Type"])
             triage_report = self.triage_agent.generate_triage_report(
-                alert["Type"],
-                alert["Source IP"],
-                alert["Details"]
+                alert["Type"], alert["Source IP"], alert["Details"]
             )
             alert["ai_report"] = triage_report
             alerts.append(alert)
@@ -312,8 +304,8 @@ class DetectionService:
                 ai_report=self.triage_agent.generate_triage_report(
                     "Blocked by IPS",
                     ip,
-                    "IP was blacklisted automatically due to cumulative threat score reaching 100."
-                )
+                    "IP was blacklisted automatically due to cumulative threat score reaching 100.",
+                ),
             )
             if persist:
                 await persist_alert_async(blocked_alert)
@@ -327,9 +319,7 @@ class DetectionService:
             # Generate AI Triage Report
             sev = get_threat_severity(signature_alert["Type"])
             triage_report = self.triage_agent.generate_triage_report(
-                signature_alert["Type"],
-                signature_alert["Source IP"],
-                signature_alert["Details"]
+                signature_alert["Type"], signature_alert["Source IP"], signature_alert["Details"]
             )
             signature_alert["ai_report"] = triage_report
             alerts.append(signature_alert)
@@ -348,9 +338,7 @@ class DetectionService:
         for alert in ai_alerts:
             sev = get_threat_severity(alert["Type"])
             triage_report = self.triage_agent.generate_triage_report(
-                alert["Type"],
-                alert["Source IP"],
-                alert["Details"]
+                alert["Type"], alert["Source IP"], alert["Details"]
             )
             alert["ai_report"] = triage_report
             alerts.append(alert)

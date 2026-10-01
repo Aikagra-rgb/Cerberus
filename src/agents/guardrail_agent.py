@@ -35,7 +35,7 @@ _DANGEROUS_PATTERNS = [
     r"format\s+[Cc]:",
     r"del\s+/[Ff]\s+/[Ss]\s+/[Qq]\s+[Cc]:\\",
     r"shutdown\s+(-h|-r)\s+now",
-    r":(){:|:&};:",   # Fork bomb
+    r":(){:|:&};:",  # Fork bomb
     r">\s*/etc/passwd",
     r">\s*/etc/shadow",
     r"chmod\s+777\s+/",
@@ -95,17 +95,17 @@ def run(
 
     if static_issues:
         return {
-            "approved":           False,
-            "risk_score":         95,
-            "intercepted_items":  static_issues,
-            "corrections":        ["Remediation output was blocked by static safety scanner."],
+            "approved": False,
+            "risk_score": 95,
+            "intercepted_items": static_issues,
+            "corrections": ["Remediation output was blocked by static safety scanner."],
             "verification_notes": "Static regex guardrail detected critically dangerous shell patterns.",
-            "final_verdict":      "INTERCEPTED",
+            "final_verdict": "INTERCEPTED",
         }
 
     # Step 2: Deep LLM-based verification via DeepSeek reasoning
     attack_class = triage_result.get("attack_class", threat_type)
-    severity     = triage_result.get("severity", "HIGH")
+    severity = triage_result.get("severity", "HIGH")
 
     user_prompt = f"""
 === ORIGINAL ALERT ===
@@ -114,12 +114,12 @@ Attacker IP  : {source_ip}
 Severity     : {severity}
 
 === REMEDIATION OUTPUT TO VERIFY ===
-Firewall Linux  : {remediation_result.get('firewall_cmd_linux', 'N/A')}
-Firewall Windows: {remediation_result.get('firewall_cmd_windows', 'N/A')}
-Ansible Playbook: {str(remediation_result.get('ansible_playbook', ''))[:500]}
-Sigma Rule      : {str(remediation_result.get('sigma_rule', ''))[:300]}
-Patch Steps     : {remediation_result.get('patch_instructions', [])}
-Summary         : {remediation_result.get('remediation_summary', 'N/A')}
+Firewall Linux  : {remediation_result.get("firewall_cmd_linux", "N/A")}
+Firewall Windows: {remediation_result.get("firewall_cmd_windows", "N/A")}
+Ansible Playbook: {str(remediation_result.get("ansible_playbook", ""))[:500]}
+Sigma Rule      : {str(remediation_result.get("sigma_rule", ""))[:300]}
+Patch Steps     : {remediation_result.get("patch_instructions", [])}
+Summary         : {remediation_result.get("remediation_summary", "N/A")}
 
 Audit this remediation output. Return your verdict as a JSON object.
 """.strip()
@@ -132,20 +132,20 @@ Audit this remediation output. Return your verdict as a JSON object.
             temperature=0.05,
             max_tokens=700,
         )
-        result.setdefault("approved",           True)
-        result.setdefault("risk_score",         0)
-        result.setdefault("intercepted_items",  [])
-        result.setdefault("corrections",        [])
+        result.setdefault("approved", True)
+        result.setdefault("risk_score", 0)
+        result.setdefault("intercepted_items", [])
+        result.setdefault("corrections", [])
         result.setdefault("verification_notes", "All checks passed.")
-        result.setdefault("final_verdict",      "APPROVED" if result["approved"] else "INTERCEPTED")
+        result.setdefault("final_verdict", "APPROVED" if result["approved"] else "INTERCEPTED")
         return result
     except Exception as exc:
         # If Guardrail LLM fails, approve with a warning (fail-open for availability)
         return {
-            "approved":           True,
-            "risk_score":         10,
-            "intercepted_items":  [],
-            "corrections":        [],
+            "approved": True,
+            "risk_score": 10,
+            "intercepted_items": [],
+            "corrections": [],
             "verification_notes": f"Guardrail LLM check skipped (unavailable): {exc}. Static scan passed.",
-            "final_verdict":      "APPROVED",
+            "final_verdict": "APPROVED",
         }

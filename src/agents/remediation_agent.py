@@ -65,13 +65,14 @@ def run(
         Structured remediation artifacts dict
     """
     attack_class = triage_result.get("attack_class", threat_type)
-    severity     = triage_result.get("severity", "HIGH")
-    assets       = ", ".join(triage_result.get("affected_assets", ["Web Server"]))
-    lifecycle    = research_result.get("attack_lifecycle_stage", "Initial Access")
+    severity = triage_result.get("severity", "HIGH")
+    assets = ", ".join(triage_result.get("affected_assets", ["Web Server"]))
+    lifecycle = research_result.get("attack_lifecycle_stage", "Initial Access")
 
-    mitre_ids = ", ".join(
-        t.get("id", "") for t in research_result.get("mitre_techniques", [])[:3]
-    ) or "Unknown"
+    mitre_ids = (
+        ", ".join(t.get("id", "") for t in research_result.get("mitre_techniques", [])[:3])
+        or "Unknown"
+    )
 
     user_prompt = f"""
 === REMEDIATION REQUEST ===
@@ -91,46 +92,55 @@ Generate the complete remediation artifact JSON for this security incident.
             system_prompt=_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             model_family="nemotron",
-            temperature=0.05,   # Very low temp for Nemotron — precision over creativity
+            temperature=0.05,  # Very low temp for Nemotron — precision over creativity
             max_tokens=1500,
         )
         # Safety defaults
         result.setdefault(
             "firewall_cmd_linux",
-            f"sudo iptables -A INPUT -s {source_ip} -j DROP && sudo iptables -A INPUT -s {source_ip} -j LOG --log-prefix 'CERBERUS_BLOCK: '"
+            f"sudo iptables -A INPUT -s {source_ip} -j DROP && sudo iptables -A INPUT -s {source_ip} -j LOG --log-prefix 'CERBERUS_BLOCK: '",
         )
         result.setdefault(
             "firewall_cmd_windows",
-            f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}'
+            f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}',
         )
         result.setdefault("nginx_hardening", None)
         result.setdefault(
             "ansible_playbook",
-            f"---\n- name: Cerberus Remediation\n  hosts: all\n  tasks:\n    - name: Block attacker IP\n      iptables:\n        chain: INPUT\n        source: {source_ip}\n        jump: DROP"
+            f"---\n- name: Cerberus Remediation\n  hosts: all\n  tasks:\n    - name: Block attacker IP\n      iptables:\n        chain: INPUT\n        source: {source_ip}\n        jump: DROP",
         )
-        result.setdefault("sigma_rule", f"title: Cerberus Detection - {attack_class}\nstatus: experimental\ndetection:\n    selection:\n        src_ip: '{source_ip}'\n    condition: selection")
-        result.setdefault("patch_instructions", [
-            f"Block attacker IP {source_ip} at all perimeter firewall layers.",
-            f"Review all access logs for requests from {source_ip} in the past 24 hours.",
-            f"Patch or disable the vulnerable {assets} endpoint immediately.",
-            "Rotate all credentials that may have been exposed.",
-            "Enable enhanced logging and alerting for this attack pattern.",
-        ])
-        result.setdefault("remediation_summary", f"IP {source_ip} has been identified as the attacker. Firewall rules deployed and remediation steps provided.")
+        result.setdefault(
+            "sigma_rule",
+            f"title: Cerberus Detection - {attack_class}\nstatus: experimental\ndetection:\n    selection:\n        src_ip: '{source_ip}'\n    condition: selection",
+        )
+        result.setdefault(
+            "patch_instructions",
+            [
+                f"Block attacker IP {source_ip} at all perimeter firewall layers.",
+                f"Review all access logs for requests from {source_ip} in the past 24 hours.",
+                f"Patch or disable the vulnerable {assets} endpoint immediately.",
+                "Rotate all credentials that may have been exposed.",
+                "Enable enhanced logging and alerting for this attack pattern.",
+            ],
+        )
+        result.setdefault(
+            "remediation_summary",
+            f"IP {source_ip} has been identified as the attacker. Firewall rules deployed and remediation steps provided.",
+        )
         return result
     except Exception as exc:
         return {
-            "firewall_cmd_linux":   f"sudo iptables -A INPUT -s {source_ip} -j DROP",
+            "firewall_cmd_linux": f"sudo iptables -A INPUT -s {source_ip} -j DROP",
             "firewall_cmd_windows": f'New-NetFirewallRule -DisplayName "Cerberus Block {source_ip}" -Direction Inbound -Action Block -RemoteAddress {source_ip}',
-            "nginx_hardening":      None,
-            "ansible_playbook":     f"---\n- name: Block {source_ip}\n  hosts: all\n  tasks:\n    - iptables: chain=INPUT source={source_ip} jump=DROP",
-            "sigma_rule":           f"title: Cerberus - {threat_type}\nstatus: experimental\ndetection:\n  selection:\n    src_ip: '{source_ip}'\n  condition: selection",
-            "patch_instructions":   [
+            "nginx_hardening": None,
+            "ansible_playbook": f"---\n- name: Block {source_ip}\n  hosts: all\n  tasks:\n    - iptables: chain=INPUT source={source_ip} jump=DROP",
+            "sigma_rule": f"title: Cerberus - {threat_type}\nstatus: experimental\ndetection:\n  selection:\n    src_ip: '{source_ip}'\n  condition: selection",
+            "patch_instructions": [
                 f"Immediately block {source_ip} at the firewall.",
                 "Investigate affected services for signs of compromise.",
                 "Review and patch vulnerable endpoints.",
                 "Notify security team and escalate if CRITICAL.",
             ],
-            "remediation_summary":  f"Fallback remediation for {threat_type} from {source_ip}. Nemotron LLM unavailable.",
-            "error":                str(exc),
+            "remediation_summary": f"Fallback remediation for {threat_type} from {source_ip}. Nemotron LLM unavailable.",
+            "error": str(exc),
         }
