@@ -36,7 +36,7 @@ jobs:
         run: ruff format --check .
 
       - name: Run MyPy (type checking)
-        run: mypy src/ api.py --ignore-missing-imports
+        run: mypy src/ api.py --ignore-missing-imports --explicit-package-bases
 
       - name: Run Bandit (security linting)
         run: bandit -r src/ -ll -x tests/
