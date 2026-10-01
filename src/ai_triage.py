@@ -1,8 +1,7 @@
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 from urllib.parse import unquote_plus
-import re
 
 
 class AITriageAgent:
@@ -96,7 +95,7 @@ class AITriageAgent:
             response = urllib.request.urlopen(req, timeout=10.0)
             result = json.loads(response.read().decode())
             parsed_response = json.loads(result["response"].strip())
-            
+
             return {
                 "probability": confidence,
                 "analysis": parsed_response.get("analysis", "Threat analyzed successfully by local AI Agent."),
@@ -165,9 +164,9 @@ class AITriageAgent:
         # Case 4: File Tampering (FIM)
         elif "TAMPERING" in threat_upper or "FILE TAMPERING" in threat_upper:
             analysis = (
-                f"File Integrity Monitoring (FIM) alarm triggered on the host. "
-                f"The hashes of critical operating system binaries or server configurations do not match their trusted baselines, "
-                f"indicating unauthorized file modification, malware injection, or a potential compromise."
+                "File Integrity Monitoring (FIM) alarm triggered on the host. "
+                "The hashes of critical operating system binaries or server configurations do not match their trusted baselines, "
+                "indicating unauthorized file modification, malware injection, or a potential compromise."
             )
             mitigations = [
                 "Isolate the host system immediately from the local network to prevent lateral movement or Command and Control (C2) communication.",

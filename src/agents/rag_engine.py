@@ -10,7 +10,6 @@ including Technique ID, name, tactics, description, and detection notes.
 
 import json
 import os
-import re
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -39,7 +38,7 @@ class RAGEngine:
     def _load(self, path: str) -> None:
         """Load and index MITRE techniques from JSON."""
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             self._techniques = data.get("techniques", [])
 

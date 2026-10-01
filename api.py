@@ -6,32 +6,78 @@ import subprocess
 import time
 from collections import defaultdict
 from datetime import datetime
-from typing import List, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
-
+from src.agents.orchestrator import MultiAgentOrchestrator
+from src.agents.rag_engine import get_rag_engine
 from src.alert_store import (
     authenticate_user,
     create_session,
     delete_session,
     get_session,
     init_db,
-    is_ip_blocked,
     list_alerts,
+    list_all_reputations,
     list_blocked_ips,
     migrate_legacy_csv,
     unblock_ip,
-    list_all_reputations,
 )
-from src.config import DATA_DIR, MODELS_DIR, MODEL_CONFIGS
+from src.config import DATA_DIR, MODEL_CONFIGS, MODELS_DIR
 from src.detection_service import DetectionService
-from src.agents.orchestrator import MultiAgentOrchestrator
-from src.agents.rag_engine import get_rag_engine
-
+from src.logging_config import configure_logging, get_logger
+from starlette.responses import Response
 
 LEGACY_EVIDENCE_FILE = os.path.join(DATA_DIR, "hids_alerts.csv")
+
+# Configure structured logging
+configure_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+log = get_logger(__name__)
+
+# Prometheus metrics
+REQUEST_COUNT = Counter(
+    "cerberus_http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"]
+)
+REQUEST_LATENCY = Histogram(
+    "cerberus_http_request_duration_seconds",
+    "HTTP request latency in seconds",
+    ["method", "endpoint"]
+)
+ACTIVE_ALERTS = Gauge(
+    "cerberus_active_alerts",
+    "Current number of active alerts"
+)
+BLOCKED_IPS = Gauge(
+    "cerberus_blocked_ips",
+    "Current number of blocked IPs"
+)
+AI_BRAINS_LOADED = Gauge(
+    "cerberus_ai_brains_loaded",
+    "Number of AI models loaded"
+)
+PIPELINE_LATENCY = Histogram(
+    "cerberus_pipeline_duration_seconds",
+    "Multi-agent pipeline latency in seconds",
+    ["agent"]
+)
+PIPELINE_STATUS = Counter(
+    "cerberus_pipeline_status_total",
+    "Multi-agent pipeline completion status",
+    ["agent", "status"]
+)
 
 app = FastAPI(
     title="Cerberus API",
@@ -59,6 +105,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Prometheus metrics middleware
+@app.middleware("http")
+async def metrics_middleware(request, call_next):
+    import time
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    # Record metrics
+    REQUEST_COUNT.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code
+    ).inc()
+    REQUEST_LATENCY.labels(
+        method=request.method,
+        endpoint=request.url.path
+    ).observe(duration)
+
+    return response
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 detector = DetectionService()
 _orchestrator = MultiAgentOrchestrator()
 
@@ -77,7 +151,7 @@ class LogIngestRequest(BaseModel):
 
 
 class BatchLogIngestRequest(BaseModel):
-    lines: List[str] = Field(..., min_length=1)
+    lines: list[str] = Field(..., min_length=1)
     source: str = "api"
 
 
@@ -117,7 +191,7 @@ class MultiAgentTriageRequest(BaseModel):
 # ==========================================
 # AUTHENTICATION DEPENDENCIES (MIDDLEWARE)
 # ==========================================
-async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
+async def get_current_user(authorization: str | None = Header(None)) -> dict:
     """Dependency validator for active Bearer token session headers."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -125,7 +199,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
             detail="Missing or invalid session token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     token = authorization.split(" ")[1].strip()
     session_data = get_session(token)
     if not session_data:
@@ -148,12 +222,23 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
 
 # ==========================================
-# STARTUP EVENT
+# STARTUP / SHUTDOWN EVENTS
 # ==========================================
 @app.on_event("startup")
-def startup():
+async def startup():
+    log.info("cerberus_startup", version="0.4.0")
     init_db()
     migrate_legacy_csv(LEGACY_EVIDENCE_FILE)
+    # Update gauges on startup
+    AI_BRAINS_LOADED.set(len(detector.ai_engine.models))
+    blocked_list = list_blocked_ips()
+    BLOCKED_IPS.set(len(blocked_list))
+    log.info("cerberus_ready", ai_brains=len(detector.ai_engine.models), blocked_ips=len(blocked_list))
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    log.info("cerberus_shutdown")
 
 
 # ==========================================
@@ -169,6 +254,34 @@ def health():
     }
 
 
+@app.get("/ready")
+async def ready():
+    """Kubernetes readiness probe - checks if service can handle requests."""
+    # Check DB connectivity
+    try:
+        list_alerts(limit=1)
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    # Check AI engine
+    ai_ok = detector.ai_engine.ready
+
+    if db_ok and ai_ok:
+        return {"status": "ready", "database": "ok", "ai": "ok"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "not_ready", "database": "ok" if db_ok else "failed", "ai": "ok" if ai_ok else "failed"}
+        )
+
+
+@app.get("/live")
+async def live():
+    """Kubernetes liveness probe - checks if process is alive."""
+    return {"status": "alive"}
+
+
 # ==========================================
 # AUTHENTICATION ROUTES
 # ==========================================
@@ -180,6 +293,7 @@ def login(payload: LoginRequest):
     now = time.time()
     _login_attempts[key] = [t for t in _login_attempts[key] if now - t < LOGIN_RATE_WINDOW]
     if len(_login_attempts[key]) >= LOGIN_RATE_LIMIT:
+        log.warning("login_rate_limited", username=key)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Try again in 5 minutes."
@@ -188,14 +302,16 @@ def login(payload: LoginRequest):
     user = authenticate_user(payload.username, payload.password)
     if not user:
         _login_attempts[key].append(now)
+        log.warning("login_failed", username=key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    
+
     # Clear failed attempts on successful login
     _login_attempts.pop(key, None)
     token = create_session(user["username"])
+    log.info("login_success", username=user["username"], role=user["role"])
     return {
         "token": token,
         "username": user["username"],
@@ -204,7 +320,7 @@ def login(payload: LoginRequest):
 
 
 @app.post("/api/auth/logout")
-def logout(authorization: Optional[str] = Header(None)):
+def logout(authorization: str | None = Header(None)):
     """Revokes / destroys the active session token."""
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1].strip()
@@ -224,19 +340,27 @@ def get_profile(user: dict = Depends(get_current_user)):
 @app.post("/api/logs")
 def ingest_log(payload: LogIngestRequest, user: dict = Depends(require_admin)):
     """Ingests a new log line. Restricted to ADMIN users."""
+    log.info("log_ingest_single", source=payload.source, user=user["username"])
     alerts = detector.process_log_line(payload.line, persist=True)
+    if alerts:
+        ACTIVE_ALERTS.inc(len(alerts))
+        log.warning("alerts_generated", count=len(alerts), types=[a["Type"] for a in alerts])
     return {"source": payload.source, "alert_count": len(alerts), "alerts": alerts}
 
 
 @app.post("/api/logs/batch")
 def ingest_logs(payload: BatchLogIngestRequest, user: dict = Depends(require_admin)):
     """Ingests a batch of log lines. Restricted to ADMIN users."""
+    log.info("log_ingest_batch", source=payload.source, line_count=len(payload.lines), user=user["username"])
     results = []
     total_alerts = 0
     for line in payload.lines:
         alerts = detector.process_log_line(line, persist=True)
         total_alerts += len(alerts)
         results.append({"line": line, "alert_count": len(alerts), "alerts": alerts})
+    if total_alerts > 0:
+        ACTIVE_ALERTS.inc(total_alerts)
+        log.warning("alerts_generated_batch", count=total_alerts)
     return {
         "source": payload.source,
         "line_count": len(payload.lines),
@@ -249,17 +373,19 @@ def ingest_logs(payload: BatchLogIngestRequest, user: dict = Depends(require_adm
 def get_alerts(
     limit: int = Query(100, ge=1, le=1000),
     newest_first: bool = True,
-    threat_type: Optional[str] = None,
-    source_ip: Optional[str] = None,
+    threat_type: str | None = None,
+    source_ip: str | None = None,
     user: dict = Depends(get_current_user),
 ):
     """Retrieves threat alerts. Open to authenticated ANALYST or ADMIN users."""
+    log.debug("alerts_list", user=user["username"], limit=limit, threat_type=threat_type, source_ip=source_ip)
     alerts = list_alerts(limit=limit, newest_first=newest_first)
+    ACTIVE_ALERTS.set(len(alerts))
     if threat_type:
         alerts = [alert for alert in alerts if alert["Type"] == threat_type]
     if source_ip:
         alerts = [alert for alert in alerts if alert["Source IP"] == source_ip]
-        
+
     # Unpack JSON string stored in alerts db schema
     for alert in alerts:
         if alert.get("ai_report"):
@@ -276,13 +402,18 @@ def get_alerts(
 @app.get("/api/blocked-ips")
 def get_blocked(user: dict = Depends(get_current_user)):
     """Lists all blacklisted attacker IPs. Open to authenticated users."""
-    return list_blocked_ips()
+    blocked = list_blocked_ips()
+    BLOCKED_IPS.set(len(blocked))
+    return blocked
 
 
 @app.post("/api/ips/unblock")
 def post_unblock(payload: UnblockIPRequest, user: dict = Depends(require_admin)):
     """Unblocks a blacklisted IP address. Restricted to ADMIN users."""
+    log.info("ip_unblock", ip=payload.ip, admin=user["username"])
     unblock_ip(payload.ip)
+    blocked = list_blocked_ips()
+    BLOCKED_IPS.set(len(blocked))
     return {"message": f"IP {payload.ip} unblocked successfully", "ip": payload.ip}
 
 
@@ -305,7 +436,7 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
         )
 
     system_os = platform.system().upper()
-    
+
     # SECURITY FIX: Use argument lists instead of shell=True to prevent injection
     if "WINDOWS" in system_os:
         cmd_args = [
@@ -317,7 +448,7 @@ def deploy_firewall(payload: DeployFirewallRequest, user: dict = Depends(require
     else:
         cmd_args = ["sudo", "iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"]
         cmd_display = f"sudo iptables -A INPUT -s {ip} -j DROP"
-        
+
     try:
         # SECURITY FIX: shell=False with argument list — no injection possible
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=15.0)
@@ -344,7 +475,7 @@ def get_model_analytics(user: dict = Depends(get_current_user)):
     for model_type, config in MODEL_CONFIGS.items():
         metrics_file = os.path.join(MODELS_DIR, f"{model_type}_metrics.json")
         model_file = os.path.join(MODELS_DIR, f"{model_type}_classifier.pkl")
-        
+
         # Base placeholders in case model hasn't been recompiled yet
         model_data = {
             "model_type": model_type,
@@ -357,21 +488,21 @@ def get_model_analytics(user: dict = Depends(get_current_user)):
             "confusion_matrix": {"tn": 0, "fp": 0, "fn": 0, "tp": 0},
             "feature_importances": {}
         }
-        
+
         if os.path.exists(model_file):
             model_data["trained"] = True
             model_data["trained_at"] = datetime.fromtimestamp(os.path.getmtime(model_file)).strftime("%Y-%m-%d %H:%M:%S")
-            
+
         if os.path.exists(metrics_file):
             try:
-                with open(metrics_file, "r") as f:
+                with open(metrics_file) as f:
                     metrics_payload = json.load(f)
                 model_data.update(metrics_payload)
             except Exception:
                 pass
-                
+
         analytics[model_type] = model_data
-        
+
     return {
         "brains_loaded": len(detector.ai_engine.models),
         "analytics": analytics
@@ -391,6 +522,8 @@ def multi_agent_triage(
     Triage (DeepSeek) -> Research (MITRE RAG + DeepSeek) ->
     Remediation (Nemotron) -> Guardrail (DeepSeek) -> Verified Output.
     """
+    log.info("pipeline_start", threat_type=payload.threat_type, source_ip=payload.source_ip, user=user["username"])
+    pipeline_start = time.time()
     try:
         result = _orchestrator.run(
             threat_type=payload.threat_type,
@@ -398,8 +531,25 @@ def multi_agent_triage(
             details=payload.details,
             log_line=payload.log_line,
         )
+        total_ms = int((time.time() - pipeline_start) * 1000)
+
+        # Record per-agent metrics
+        for step in result.get("steps", []):
+            agent_name = step.get("agent", "unknown").lower().replace(" ", "_")
+            agent_status = step.get("status", "unknown")
+            latency_ms = step.get("latency_ms", 0)
+            PIPELINE_LATENCY.labels(agent=agent_name).observe(latency_ms / 1000.0)
+            PIPELINE_STATUS.labels(agent=agent_name, status=agent_status).inc()
+
+        log.info("pipeline_complete",
+                 threat_type=payload.threat_type,
+                 source_ip=payload.source_ip,
+                 total_latency_ms=total_ms,
+                 approved=result.get("approved", False),
+                 verdict=result.get("final_verdict", "UNKNOWN"))
         return result
     except Exception as exc:
+        log.error("pipeline_failed", threat_type=payload.threat_type, error=str(exc))
         raise HTTPException(
             status_code=500,
             detail=f"Multi-agent pipeline failed: {str(exc)}"
@@ -431,21 +581,21 @@ def mitre_search(
 # WEB SOCKETS
 # ==========================================
 @app.websocket("/api/live-alerts")
-async def live_alerts(websocket: WebSocket, token: Optional[str] = Query(None)):
+async def live_alerts(websocket: WebSocket, token: str | None = Query(None)):
     """WebSocket stream for real-time alerts. Authenticates via token query parameter."""
     await websocket.accept()
-    
+
     if not token:
         await websocket.send_json({"error": "Unauthorized: Missing token query parameter"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-        
+
     session_data = get_session(token)
     if not session_data:
         await websocket.send_json({"error": "Unauthorized: Invalid or expired session token"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-        
+
     try:
         while True:
             line = await websocket.receive_text()

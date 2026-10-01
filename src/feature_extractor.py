@@ -1,7 +1,7 @@
 import re
+
 import numpy as np
 from src.config import FEATURE_SHORT_KEYS
-
 
 # Apache/Nginx Combined Log Format regex:
 # 192.168.1.1 - - [21/Nov/2025:12:00:01 +0000] "GET /page HTTP/1.1" 200 1234

@@ -1,14 +1,13 @@
 import csv
 import hashlib
 import os
-import re
 import secrets
 import sqlite3
-from contextlib import closing
+from contextlib import asynccontextmanager, closing
 from datetime import datetime
 
+import aiosqlite
 from dotenv import load_dotenv
-
 from src.config import DB_PATH
 
 load_dotenv()
@@ -23,12 +22,120 @@ _PBKDF2_DK_LEN = 32  # 256-bit derived key
 ALERT_COLUMNS = ["Timestamp", "Type", "Source IP", "Location", "Details"]
 
 
+# ==========================================
+# SYNCHRONOUS DATABASE CONNECTION (legacy compatibility)
+# ==========================================
 def get_connection(db_path=DB_PATH):
+    """Synchronous connection for backward compatibility."""
     conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+# ==========================================
+# ASYNC DATABASE CONNECTION (new)
+# ==========================================
+@asynccontextmanager
+async def get_async_connection(db_path=DB_PATH):
+    """Async connection for use in FastAPI async endpoints."""
+    conn = await aiosqlite.connect(db_path, timeout=30)
+    conn.row_factory = aiosqlite.Row
+    await conn.execute("PRAGMA journal_mode=WAL")
+    await conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        yield conn
+    finally:
+        await conn.close()
+
+
+async def init_async_db(db_path=DB_PATH):
+    """Initialize database schema asynchronously."""
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    async with get_async_connection(db_path) as conn:
+        # 1. Active Alerts
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                threat_type TEXT NOT NULL,
+                source_ip TEXT NOT NULL,
+                location TEXT NOT NULL,
+                details TEXT NOT NULL,
+                ai_report TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        # 2. Legacy Migration Tables
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS legacy_csv_migrations (
+                path TEXT PRIMARY KEY,
+                size_bytes INTEGER NOT NULL,
+                modified_at REAL NOT NULL,
+                migrated_at TEXT NOT NULL
+            )
+            """
+        )
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS legacy_csv_rows (
+                row_key TEXT PRIMARY KEY,
+                path TEXT NOT NULL,
+                imported_at TEXT NOT NULL
+            )
+            """
+        )
+        # 3. RBAC Users Table
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                role TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        # 4. Session Tokens Table
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+            )
+            """
+        )
+        # 5. Active IPS Reputation Table
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reputation (
+                ip TEXT PRIMARY KEY,
+                score REAL DEFAULT 0,
+                blocked INTEGER DEFAULT 0,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        # 6. Indexes
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(threat_type)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_source_ip ON alerts(source_ip)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_reputation_blocked ON reputation(blocked)")
+        await conn.commit()
+
+    # Seed default user accounts if missing (use sync for now)
+    _seed_default_users(db_path)
 
 
 # ==========================================
@@ -55,6 +162,7 @@ def verify_password(password: str, salt: str, hashed_password: str) -> bool:
     return secrets.compare_digest(pwd_hash, hashed_password)
 
 
+# --- Sync versions (backward compatibility) ---
 def create_user(username: str, password: str, role: str, db_path=DB_PATH) -> bool:
     """Creates a new user account with hashed password and specific role."""
     init_db(db_path)
@@ -82,10 +190,10 @@ def authenticate_user(username: str, password: str, db_path=DB_PATH) -> dict | N
             "SELECT username, password_hash, salt, role FROM users WHERE username = ?",
             (username.lower().strip(),),
         ).fetchone()
-        
+
     if not row:
         return None
-        
+
     if verify_password(password, row["salt"], row["password_hash"]):
         return {"username": row["username"], "role": row["role"]}
     return None
@@ -115,7 +223,7 @@ def get_session(token: str, db_path=DB_PATH) -> dict | None:
     with closing(get_connection(db_path)) as conn:
         conn.execute("DELETE FROM sessions WHERE datetime(expires_at) < datetime(?)", (now,))
         conn.commit()
-        
+
         row = conn.execute(
             """
             SELECT s.username, u.role FROM sessions s
@@ -124,7 +232,7 @@ def get_session(token: str, db_path=DB_PATH) -> dict | None:
             """,
             (token, now),
         ).fetchone()
-        
+
     if row:
         return {"username": row["username"], "role": row["role"]}
     return None
@@ -138,15 +246,102 @@ def delete_session(token: str, db_path=DB_PATH):
         conn.commit()
 
 
+# --- Async versions (new) ---
+async def create_user_async(username: str, password: str, role: str, db_path=DB_PATH) -> bool:
+    """Async version of create_user."""
+    await init_async_db(db_path)
+    pwd_hash, salt = hash_password(password)
+    try:
+        async with get_async_connection(db_path) as conn:
+            await conn.execute(
+                """
+                INSERT INTO users (username, password_hash, salt, role)
+                VALUES (?, ?, ?, ?)
+                """,
+                (username.lower().strip(), pwd_hash, salt, role.upper().strip()),
+            )
+            await conn.commit()
+        return True
+    except aiosqlite.IntegrityError:
+        return False
+
+
+async def authenticate_user_async(username: str, password: str, db_path=DB_PATH) -> dict | None:
+    """Async version of authenticate_user."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        row = await conn.execute(
+            "SELECT username, password_hash, salt, role FROM users WHERE username = ?",
+            (username.lower().strip(),),
+        )
+        row = await row.fetchone()
+
+    if not row:
+        return None
+
+    if verify_password(password, row["salt"], row["password_hash"]):
+        return {"username": row["username"], "role": row["role"]}
+    return None
+
+
+async def create_session_async(username: str, db_path=DB_PATH) -> str:
+    """Async version of create_session."""
+    await init_async_db(db_path)
+    token = secrets.token_hex(32)
+    expires_at = datetime.fromtimestamp(datetime.now().timestamp() + 86400).strftime("%Y-%m-%d %H:%M:%S")
+    async with get_async_connection(db_path) as conn:
+        await conn.execute(
+            """
+            INSERT INTO sessions (token, username, expires_at)
+            VALUES (?, ?, ?)
+            """,
+            (token, username.lower().strip(), expires_at),
+        )
+        await conn.commit()
+    return token
+
+
+async def get_session_async(token: str, db_path=DB_PATH) -> dict | None:
+    """Async version of get_session."""
+    await init_async_db(db_path)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with get_async_connection(db_path) as conn:
+        await conn.execute("DELETE FROM sessions WHERE datetime(expires_at) < datetime(?)", (now,))
+        await conn.commit()
+
+        row = await conn.execute(
+            """
+            SELECT s.username, u.role FROM sessions s
+            JOIN users u ON s.username = u.username
+            WHERE s.token = ? AND datetime(s.expires_at) >= datetime(?)
+            """,
+            (token, now),
+        )
+        row = await row.fetchone()
+
+    if row:
+        return {"username": row["username"], "role": row["role"]}
+    return None
+
+
+async def delete_session_async(token: str, db_path=DB_PATH):
+    """Async version of delete_session."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        await conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        await conn.commit()
+
+
 # ==========================================
 # ACTIVE IPS & REPUTATION UTILITIES
 # ==========================================
+# --- Sync versions (backward compatibility) ---
 def update_ip_reputation(ip: str, score_to_add: float, db_path=DB_PATH) -> bool:
     """Increments threat score and sets blocked = 1 if score >= 100. Returns blocked status."""
     init_db(db_path)
     if ip == "Unknown" or ip == "127.0.0.1" or ip == "Localhost":
         return False # Never block local debuggers
-        
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with closing(get_connection(db_path)) as conn:
         row = conn.execute("SELECT score, blocked FROM reputation WHERE ip = ?", (ip,)).fetchone()
@@ -231,10 +426,107 @@ def list_all_reputations(db_path=DB_PATH) -> list:
     return [dict(row) for row in rows]
 
 
+# --- Async versions (new) ---
+async def update_ip_reputation_async(ip: str, score_to_add: float, db_path=DB_PATH) -> bool:
+    """Async version of update_ip_reputation."""
+    await init_async_db(db_path)
+    if ip == "Unknown" or ip == "127.0.0.1" or ip == "Localhost":
+        return False
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with get_async_connection(db_path) as conn:
+        row = await conn.execute("SELECT score, blocked FROM reputation WHERE ip = ?", (ip,))
+        row = await row.fetchone()
+        if row:
+            new_score = float(row["score"]) + score_to_add
+            blocked = 1 if new_score >= 100.0 else int(row["blocked"])
+            await conn.execute(
+                """
+                UPDATE reputation
+                SET score = ?, blocked = ?, updated_at = ?
+                WHERE ip = ?
+                """,
+                (new_score, blocked, now, ip),
+            )
+        else:
+            blocked = 1 if score_to_add >= 100.0 else 0
+            await conn.execute(
+                """
+                INSERT INTO reputation (ip, score, blocked, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (ip, score_to_add, blocked, now),
+            )
+        await conn.commit()
+    return bool(blocked)
+
+
+async def is_ip_blocked_async(ip: str, db_path=DB_PATH) -> bool:
+    """Async version of is_ip_blocked."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        row = await conn.execute("SELECT blocked FROM reputation WHERE ip = ?", (ip,))
+        row = await row.fetchone()
+    return bool(row["blocked"]) if row else False
+
+
+async def list_blocked_ips_async(db_path=DB_PATH) -> list:
+    """Async version of list_blocked_ips."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        rows = await conn.execute(
+            """
+            SELECT ip, score, updated_at
+            FROM reputation
+            WHERE blocked = 1
+            ORDER BY score DESC
+            """
+        )
+        rows = await rows.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def unblock_ip_async(ip: str, db_path=DB_PATH):
+    """Async version of unblock_ip."""
+    await init_async_db(db_path)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with get_async_connection(db_path) as conn:
+        await conn.execute(
+            """
+            UPDATE reputation
+            SET score = 0, blocked = 0, updated_at = ?
+            WHERE ip = ?
+            """,
+            (now, ip),
+        )
+        await conn.commit()
+
+
+async def get_ip_reputation_async(ip: str, db_path=DB_PATH) -> dict:
+    """Async version of get_ip_reputation."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        row = await conn.execute("SELECT score, blocked, updated_at FROM reputation WHERE ip = ?", (ip,))
+        row = await row.fetchone()
+    if row:
+        return {"ip": ip, "score": float(row["score"]), "blocked": bool(row["blocked"]), "updated_at": row["updated_at"]}
+    return {"ip": ip, "score": 0.0, "blocked": False, "updated_at": None}
+
+
+async def list_all_reputations_async(db_path=DB_PATH) -> list:
+    """Async version of list_all_reputations."""
+    await init_async_db(db_path)
+    async with get_async_connection(db_path) as conn:
+        rows = await conn.execute("SELECT ip, score, blocked, updated_at FROM reputation ORDER BY score DESC LIMIT 100")
+        rows = await rows.fetchall()
+    return [dict(row) for row in rows]
+
+
 # ==========================================
-# DATABASE INITIALIZATION & OPERATIONS
+# DATABASE INITIALIZATION & OPERATIONS (sync for backward compatibility)
 # ==========================================
 def init_db(db_path=DB_PATH):
+    """Synchronous database initialization."""
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     with closing(get_connection(db_path)) as conn:
         # 1. Active Alerts
@@ -247,6 +539,7 @@ def init_db(db_path=DB_PATH):
                 source_ip TEXT NOT NULL,
                 location TEXT NOT NULL,
                 details TEXT NOT NULL,
+                ai_report TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -343,7 +636,7 @@ def _seed_default_users(db_path):
             # Delete any other user accounts so only the owner can access
             conn.execute("DELETE FROM users WHERE username != ?", (admin_user.lower(),))
             conn.execute("DELETE FROM sessions WHERE username != ?", (admin_user.lower(),))
-            
+
             pwd_hash, salt = hash_password(admin_pass)
             conn.execute(
                 """
@@ -373,6 +666,7 @@ def _seed_default_users(db_path):
 
 
 def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
+    """Add alert synchronously."""
     init_db(db_path)
     timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with closing(get_connection(db_path)) as conn:
@@ -386,10 +680,27 @@ def add_alert(threat_type, source_ip, location, details, timestamp=None, ai_repo
         conn.commit()
 
 
+async def add_alert_async(threat_type, source_ip, location, details, timestamp=None, ai_report=None, db_path=DB_PATH):
+    """Add alert asynchronously."""
+    await init_async_db(db_path)
+    timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with get_async_connection(db_path) as conn:
+        await conn.execute(
+            """
+            INSERT INTO alerts (timestamp, threat_type, source_ip, location, details, ai_report)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (timestamp, threat_type, source_ip, location, details.strip(), ai_report),
+        )
+        await conn.commit()
+
+
 def list_alerts(limit=None, db_path=DB_PATH, newest_first=False):
+    """List alerts synchronously."""
     init_db(db_path)
     direction = "DESC" if newest_first else "ASC"
-    query = """
+    # direction is controlled by code (ASC/DESC only), not user input - safe from SQL injection
+    query = f"""
         SELECT
             timestamp AS "Timestamp",
             threat_type AS "Type",
@@ -399,7 +710,7 @@ def list_alerts(limit=None, db_path=DB_PATH, newest_first=False):
             ai_report AS "ai_report"
         FROM alerts
         ORDER BY datetime(timestamp) {direction}, id {direction}
-    """.format(direction=direction)
+    """  # nosec B608
     params = ()
     if limit is not None:
         query += " LIMIT ?"
@@ -407,6 +718,33 @@ def list_alerts(limit=None, db_path=DB_PATH, newest_first=False):
 
     with closing(get_connection(db_path)) as conn:
         return [dict(row) for row in conn.execute(query, params).fetchall()]
+
+
+async def list_alerts_async(limit=None, db_path=DB_PATH, newest_first=False):
+    """List alerts asynchronously."""
+    await init_async_db(db_path)
+    direction = "DESC" if newest_first else "ASC"
+    # direction is controlled by code (ASC/DESC only), not user input - safe from SQL injection
+    query = f"""
+        SELECT
+            timestamp AS "Timestamp",
+            threat_type AS "Type",
+            source_ip AS "Source IP",
+            location AS "Location",
+            details AS "Details",
+            ai_report AS "ai_report"
+        FROM alerts
+        ORDER BY datetime(timestamp) {direction}, id {direction}
+    """  # nosec B608
+    params = ()
+    if limit is not None:
+        query += " LIMIT ?"
+        params = (int(limit),)
+
+    async with get_async_connection(db_path) as conn:
+        rows = await conn.execute(query, params)
+        rows = await rows.fetchall()
+    return [dict(row) for row in rows]
 
 
 def migrate_legacy_csv(csv_path, db_path=DB_PATH):

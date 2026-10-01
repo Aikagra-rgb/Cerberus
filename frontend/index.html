@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="cerberus-api-url" content="" />
     <title>Cerberus SOC Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -220,11 +221,20 @@
           <label class="field-label" for="apiUrl">API Endpoint</label>
           <input id="apiUrl" class="input" value="http://127.0.0.1:8000" />
           <script>
-            // Auto-detect: if hosted on Vercel (not localhost), point to Render backend
+            // Auto-detect API URL: use meta tag, env, or default to localhost
             (function() {
+              var meta = document.querySelector('meta[name="cerberus-api-url"]');
               var h = window.location.hostname;
-              if (h !== 'localhost' && h !== '127.0.0.1') {
-                document.getElementById('apiUrl').value = 'https://cerberus-gxim.onrender.com';
+              var defaultUrl = 'http://127.0.0.1:8000';
+              
+              // Priority: meta tag > auto-detect > default
+              if (meta && meta.content) {
+                document.getElementById('apiUrl').value = meta.content;
+              } else if (h !== 'localhost' && h !== '127.0.0.1') {
+                // Production: assume backend is at same origin /api or use relative
+                document.getElementById('apiUrl').value = '';
+              } else {
+                document.getElementById('apiUrl').value = defaultUrl;
               }
             })();
           </script>

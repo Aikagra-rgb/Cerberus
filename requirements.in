@@ -1,0 +1,37 @@
+# Core ML & Data
+numpy>=1.26.0,<2.0
+pandas>=2.1.0,<3.0
+scikit-learn>=1.6.1,<2.0
+joblib>=1.3.0,<2.0
+
+# API & Web Server
+fastapi>=0.110.0,<1.0
+uvicorn[standard]>=0.29.0,<1.0
+httpx>=0.27.0,<1.0
+python-multipart>=0.0.9,<1.0
+pydantic>=2.6.0,<3.0
+pydantic-settings>=2.0.0,<3.0
+
+# Multi-Agent LLM Pipeline (NVIDIA NIM / DeepSeek / Nemotron)
+openai>=1.40.0,<2.0
+python-dotenv>=1.0.0,<2.0
+
+# Observability
+structlog>=24.1.0,<25.0
+prometheus-client>=0.19.0,<1.0
+
+# Database (async)
+aiosqlite>=0.19.0,<1.0
+
+# Dashboard (optional - comment out if not using Streamlit)
+streamlit>=1.35.0,<2.0
+plotly>=5.20.0,<6.0
+
+# Dev / Test dependencies (extras)
+# pytest>=8.0.0,<9.0
+# pytest-asyncio>=0.23.0,<1.0
+# pytest-cov>=5.0.0,<6.0
+# ruff>=0.4.0,<1.0
+# mypy>=1.10.0,<2.0
+# bandit>=1.7.0,<2.0
+# pip-audit>=2.7.0,<3.0

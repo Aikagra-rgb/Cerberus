@@ -12,9 +12,8 @@ real-time UI rendering in the frontend Triage Console.
 
 import time
 from datetime import datetime
-from typing import Any
 
-from . import triage_agent, research_agent, remediation_agent, guardrail_agent
+from . import guardrail_agent, remediation_agent, research_agent, triage_agent
 
 
 class AgentStep:

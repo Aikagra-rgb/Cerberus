@@ -4,11 +4,17 @@ import re
 from datetime import datetime
 from urllib.parse import unquote_plus
 
-from src.alert_store import add_alert, is_ip_blocked, update_ip_reputation
+from src.ai_triage import AITriageAgent
+from src.alert_store import (
+    add_alert,
+    add_alert_async,
+    is_ip_blocked,
+    is_ip_blocked_async,
+    update_ip_reputation,
+    update_ip_reputation_async,
+)
 from src.config import DATA_DIR, MODEL_CONFIGS, MODELS_DIR
 from src.feature_extractor import FeatureExtractor
-from src.ai_triage import AITriageAgent
-
 
 SIGNATURE_FILE = os.path.join(DATA_DIR, "signatures.json")
 
@@ -87,6 +93,18 @@ def persist_alert(alert):
     )
 
 
+async def persist_alert_async(alert):
+    """Async version of persist_alert."""
+    await add_alert_async(
+        alert["Type"],
+        alert["Source IP"],
+        alert["Location"],
+        alert["Details"],
+        timestamp=alert["Timestamp"],
+        ai_report=json.dumps(alert["ai_report"]) if alert["ai_report"] else None
+    )
+
+
 class SignatureEngine:
     def __init__(self, signature_file=SIGNATURE_FILE):
         self.signature_file = signature_file
@@ -105,7 +123,7 @@ class SignatureEngine:
             return DEFAULT_SIGNATURES
 
         try:
-            with open(self.signature_file, "r") as f:
+            with open(self.signature_file) as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return []
@@ -128,6 +146,13 @@ class SignatureEngine:
         alert = self.detect(line)
         if alert and persist:
             persist_alert(alert)
+        return bool(alert)
+
+    async def check_async(self, line, persist=True):
+        """Async version of check."""
+        alert = self.detect(line)
+        if alert and persist:
+            await persist_alert_async(alert)
         return bool(alert)
 
 
@@ -190,6 +215,14 @@ class AIEngine:
                 persist_alert(alert)
         return alerts
 
+    async def check_all_async(self, line, persist=True):
+        """Async version of check_all."""
+        alerts = self.detect_all(line)
+        if persist:
+            for alert in alerts:
+                await persist_alert_async(alert)
+        return alerts
+
 
 class DetectionService:
     def __init__(self, signature_engine=None, ai_engine=None, triage_agent=None):
@@ -198,8 +231,9 @@ class DetectionService:
         self.triage_agent = triage_agent or AITriageAgent()
 
     def process_log_line(self, line, persist=True, stop_after_signature=True):
+        """Synchronous version for backward compatibility."""
         ip = extract_ip(line)
-        
+
         # ==========================================
         # GATE 1: ACTIVE IPS INTERCEPTION CHECK
         # ==========================================
@@ -220,7 +254,7 @@ class DetectionService:
             return [blocked_alert]
 
         alerts = []
-        
+
         # 1. Signature Check
         signature_alert = self.signature_engine.detect(line)
         if signature_alert:
@@ -233,13 +267,13 @@ class DetectionService:
             )
             signature_alert["ai_report"] = triage_report
             alerts.append(signature_alert)
-            
+
             if persist:
                 persist_alert(signature_alert)
                 # Increment attacker IP reputation threat score
                 score_to_add = get_score_for_severity(sev)
                 update_ip_reputation(signature_alert["Source IP"], score_to_add)
-                
+
             if stop_after_signature:
                 return alerts
 
@@ -254,10 +288,76 @@ class DetectionService:
             )
             alert["ai_report"] = triage_report
             alerts.append(alert)
-            
+
             if persist:
                 persist_alert(alert)
                 score_to_add = get_score_for_severity(sev)
                 update_ip_reputation(alert["Source IP"], score_to_add)
-                
+
+        return alerts
+
+    async def process_log_line_async(self, line, persist=True, stop_after_signature=True):
+        """Async version of process_log_line for use in FastAPI async endpoints."""
+        ip = extract_ip(line)
+
+        # ==========================================
+        # GATE 1: ACTIVE IPS INTERCEPTION CHECK (async)
+        # ==========================================
+        if ip != "Unknown" and await is_ip_blocked_async(ip):
+            blocked_alert = make_alert(
+                "Blocked by IPS",
+                ip,
+                "Unknown",
+                "Connection blocked at active IPS gatekeeper. Suppressed AI/Signature checks.",
+                ai_report=self.triage_agent.generate_triage_report(
+                    "Blocked by IPS",
+                    ip,
+                    "IP was blacklisted automatically due to cumulative threat score reaching 100."
+                )
+            )
+            if persist:
+                await persist_alert_async(blocked_alert)
+            return [blocked_alert]
+
+        alerts = []
+
+        # 1. Signature Check
+        signature_alert = self.signature_engine.detect(line)
+        if signature_alert:
+            # Generate AI Triage Report
+            sev = get_threat_severity(signature_alert["Type"])
+            triage_report = self.triage_agent.generate_triage_report(
+                signature_alert["Type"],
+                signature_alert["Source IP"],
+                signature_alert["Details"]
+            )
+            signature_alert["ai_report"] = triage_report
+            alerts.append(signature_alert)
+
+            if persist:
+                await persist_alert_async(signature_alert)
+                # Increment attacker IP reputation threat score
+                score_to_add = get_score_for_severity(sev)
+                await update_ip_reputation_async(signature_alert["Source IP"], score_to_add)
+
+            if stop_after_signature:
+                return alerts
+
+        # 2. AI Multi-Brain Checks
+        ai_alerts = self.ai_engine.detect_all(line)
+        for alert in ai_alerts:
+            sev = get_threat_severity(alert["Type"])
+            triage_report = self.triage_agent.generate_triage_report(
+                alert["Type"],
+                alert["Source IP"],
+                alert["Details"]
+            )
+            alert["ai_report"] = triage_report
+            alerts.append(alert)
+
+            if persist:
+                await persist_alert_async(alert)
+                score_to_add = get_score_for_severity(sev)
+                await update_ip_reputation_async(alert["Source IP"], score_to_add)
+
         return alerts

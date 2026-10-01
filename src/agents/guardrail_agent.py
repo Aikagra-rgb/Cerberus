@@ -24,6 +24,7 @@ Output (JSON):
 """
 
 import re
+
 from .llm_provider import call_llm_json
 
 # Patterns that are ALWAYS dangerous regardless of context
