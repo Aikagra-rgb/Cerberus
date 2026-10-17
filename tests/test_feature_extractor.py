@@ -44,6 +44,27 @@ class FeatureExtractorTests(unittest.TestCase):
         features = self.extractor.extract(line)
         self.assertIsNone(features)
 
+    def test_extract_parses_real_combined_log_format(self):
+        line = '192.168.1.1 - - [21/Nov/2025:12:00:01 +0000] "GET /page?x=1&y=2 HTTP/1.1" 200 1234'
+        features = self.extractor.extract(line)
+
+        self.assertIsNotNone(features)
+        self.assertEqual(features.shape, (1, len(FEATURE_SHORT_KEYS)))
+
+    def test_extract_real_log_handles_dash_response_size(self):
+        line = '203.0.113.9 - - [21/Nov/2025:12:00:01 +0000] "POST /admin HTTP/1.1" 500 -'
+        features = self.extractor.extract(line)
+
+        self.assertIsNotNone(features)
+        # Response size '-' is treated as zero at the bwd_len position.
+        self.assertAlmostEqual(features[0][5], 0.0)
+
+    def test_get_feature_count_matches_vector_length(self):
+        self.assertEqual(self.extractor.get_feature_count(), len(FEATURE_SHORT_KEYS))
+
+    def test_extract_returns_none_for_garbage_input(self):
+        self.assertIsNone(self.extractor.extract("this is not a log line"))
+
 
 if __name__ == "__main__":
     unittest.main()

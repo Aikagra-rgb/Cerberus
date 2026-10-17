@@ -1,19 +1,37 @@
 {
-  "accuracy": 0.994,
-  "precision": 0.998,
-  "recall": 0.991,
-  "f1_score": 0.994,
-  "confusion_matrix": {
-    "tn": 4850,
-    "fp": 10,
-    "fn": 45,
-    "tp": 4895
-  },
-  "feature_importances": {
-    "Destination Port": 0.32,
-    "Flow Duration": 0.24,
-    "Total Fwd Packets": 0.18,
-    "Total Backward Packets": 0.14,
-    "Flow Bytes/s": 0.12
-  }
+    "model_type": "botnet",
+    "dataset": "cic_friday_morning.csv",
+    "trained_at": "2026-10-17 01:04:59",
+    "accuracy": 0.9916932907348243,
+    "precision": 0.9725,
+    "recall": 0.9948849104859335,
+    "f1_score": 0.9835651074589128,
+    "confusion_matrix": {
+        "tn": 1163,
+        "fp": 11,
+        "fn": 2,
+        "tp": 389
+    },
+    "feature_importances": {
+        "Destination Port": 0.2824267058017528,
+        "Flow Duration": 0.020683410651491214,
+        "Total Fwd Packets": 0.009665635133086513,
+        "Total Backward Packets": 0.03817001888275687,
+        "Total Length of Fwd Packets": 0.04668179322588206,
+        "Total Length of Bwd Packets": 0.09211616006133529,
+        "Fwd Packet Length Max": 0.02709751648127531,
+        "Fwd Packet Length Mean": 0.011720743920029905,
+        "Bwd Packet Length Max": 0.07388416810988167,
+        "Bwd Packet Length Mean": 0.1587274453438625,
+        "Flow Bytes/s": 0.016011453829612575,
+        "Flow Packets/s": 0.011303035565643367,
+        "Flow IAT Mean": 0.011994993666288296,
+        "Flow IAT Std": 0.011279152614948485,
+        "Flow IAT Min": 0.023426275996542945,
+        "Fwd IAT Mean": 0.011467771831663375,
+        "Fwd IAT Min": 0.005806207057690218,
+        "SYN Flag Count": 0.004557053329464962,
+        "RST Flag Count": 0.0,
+        "Init_Win_bytes_forward": 0.14298045849679172
+    }
 }

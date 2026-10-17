@@ -70,7 +70,7 @@ PIPELINE_STATUS = Counter(
 
 app = FastAPI(
     title="Cerberus API",
-    version="0.4.0",
+    version="1.0.0",
     description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
 )
 
@@ -212,7 +212,7 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 # ==========================================
 @app.on_event("startup")
 async def startup():
-    log.info("cerberus_startup", version="0.4.0")
+    log.info("cerberus_startup", version="1.0.0")
     init_db()
     migrate_legacy_csv(LEGACY_EVIDENCE_FILE)
     # Update gauges on startup

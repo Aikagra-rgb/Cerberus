@@ -1,19 +1,37 @@
 {
-  "accuracy": 0.994,
-  "precision": 0.998,
-  "recall": 0.991,
-  "f1_score": 0.994,
-  "confusion_matrix": {
-    "tn": 4850,
-    "fp": 10,
-    "fn": 45,
-    "tp": 4895
-  },
-  "feature_importances": {
-    "Destination Port": 0.32,
-    "Flow Duration": 0.24,
-    "Total Fwd Packets": 0.18,
-    "Total Backward Packets": 0.14,
-    "Flow Bytes/s": 0.12
-  }
+    "model_type": "infiltration",
+    "dataset": "cic_thursday_infiltration.csv",
+    "trained_at": "2026-10-17 01:05:08",
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "confusion_matrix": {
+        "tn": 22,
+        "fp": 0,
+        "fn": 0,
+        "tp": 7
+    },
+    "feature_importances": {
+        "Destination Port": 0.1702833015503508,
+        "Flow Duration": 0.09514094025271944,
+        "Total Fwd Packets": 0.060639031178320625,
+        "Total Backward Packets": 0.04454510757876127,
+        "Total Length of Fwd Packets": 0.09392080349461407,
+        "Total Length of Bwd Packets": 0.007372681983415029,
+        "Fwd Packet Length Max": 0.12218689423186274,
+        "Fwd Packet Length Mean": 0.130841890165337,
+        "Bwd Packet Length Max": 0.023149048977773937,
+        "Bwd Packet Length Mean": 0.025832054693680048,
+        "Flow Bytes/s": 0.01167353961290233,
+        "Flow Packets/s": 0.01701430352054956,
+        "Flow IAT Mean": 0.016139171537494945,
+        "Flow IAT Std": 0.046965264799697044,
+        "Flow IAT Min": 0.021389450213063533,
+        "Fwd IAT Mean": 0.04692757086375654,
+        "Fwd IAT Min": 0.03508969063212856,
+        "SYN Flag Count": 0.017223560424638275,
+        "RST Flag Count": 0.0,
+        "Init_Win_bytes_forward": 0.013665694288934382
+    }
 }

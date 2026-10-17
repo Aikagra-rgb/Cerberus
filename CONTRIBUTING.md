@@ -128,7 +128,7 @@ cd frontend && node server.mjs
 
 ## Release Process
 
-1. **Version bump** in `api.py` and `frontend/package.json`
+1. **Version bump** in `pyproject.toml`, `api.py`, and `frontend/package.json`
 2. **Update CHANGELOG.md** with release notes
 3. **Create release branch**: `release/vX.Y.Z`
 4. **Run full CI suite** - must pass

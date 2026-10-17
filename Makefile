@@ -18,7 +18,7 @@ install:
 	pip install -e .
 
 test:
-	pytest tests/ -v --cov=src --cov=api --cov-report=term-missing --cov-fail-under=45
+	pytest tests/ -v --cov=src --cov=api --cov-report=term-missing --cov-fail-under=70
 
 lint:
 	ruff check .

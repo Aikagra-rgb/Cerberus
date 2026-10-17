@@ -13,3 +13,9 @@ __pycache__
 sentinel.db*
 .env*
 tests
+
+# CIC-IDS2017 training datasets (~844 MB) — not needed at runtime
+data/cic_*.csv
+
+# Tooling caches
+.qodo

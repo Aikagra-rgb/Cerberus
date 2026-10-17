@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible defect in Cerberus
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. For **security** issues, use
+        private reporting instead (see the issue chooser).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands, requests, or UI actions.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - API backend
+        - Detection / AI pipeline
+        - Multi-agent pipeline
+        - Frontend console
+        - Docker / deployment
+        - CI/CD
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Cerberus version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, Docker version, deployment mode.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Redact secrets before pasting. The X-Request-ID header helps correlate.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those are reported privately).
+          required: true
