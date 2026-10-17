@@ -1,5 +1,5 @@
 # Use official, stable, minimal Python runtime
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Set strict execution environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
