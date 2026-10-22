@@ -24,7 +24,7 @@ prometheus-client>=0.19.0,<1.0
 aiosqlite>=0.19.0,<1.0
 
 # Dashboard (optional - comment out if not using Streamlit)
-streamlit>=1.35.0,<2.0
+streamlit>=1.66.0,<2.0
 plotly>=5.20.0,<6.0
 
 # Dev / Test dependencies (extras)
