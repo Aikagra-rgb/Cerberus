@@ -82,15 +82,13 @@ if ($Task -eq "frontend" -or $Task -eq "dashboard") {
 }
 
 # ---------------------------------------------------------
-# TASK: ALL (Demo mode)
+# TASK: DEV / ALL (Single-terminal concurrent launcher)
 # ---------------------------------------------------------
-if ($Task -eq "all") {
-    Write-Host "`n[Workflow] Launching full system..." -ForegroundColor Green
+if ($Task -eq "dev") {
+    & $Python run.py
+}
 
-    Start-Process $Python -ArgumentList "sentinel_engine.py"
-    Start-Process $Python -ArgumentList "-m uvicorn api:app --host 127.0.0.1 --port 8000"
-    Push-Location frontend
-    npm run dev
-    Pop-Location
+if ($Task -eq "all") {
+    & $Python run.py --with-engine
 }
 

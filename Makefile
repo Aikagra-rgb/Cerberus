@@ -1,7 +1,8 @@
-.PHONY: help install test lint format security docker-build run-backend run-frontend clean
+.PHONY: help install test lint format security docker-build dev run run-backend run-frontend clean
 
 help:
 	@echo "Cerberus SOC - Make commands:"
+	@echo "  make dev           Start BOTH Backend + Frontend concurrently in one terminal"
 	@echo "  make install       Install all production and dev dependencies"
 	@echo "  make test          Run pytest suite with coverage enforcement"
 	@echo "  make lint          Run Ruff linting, formatting checks, and MyPy type checks"
@@ -9,8 +10,14 @@ help:
 	@echo "  make security      Run Bandit AST security analysis and pip-audit"
 	@echo "  make docker-build  Build backend and frontend Docker containers"
 	@echo "  make run-backend   Start local backend FastAPI API with hot-reload"
-	@echo "  make run-frontend  Serve static frontend on localhost:5173"
+	@echo "  make run-frontend  Start React + Vite frontend dev server on localhost:3000"
 	@echo "  make clean         Clean build artifacts, caches, and coverage reports"
+
+dev:
+	python run.py
+
+run:
+	python run.py --with-engine
 
 install:
 	pip install -r requirements.txt
