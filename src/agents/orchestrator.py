@@ -11,7 +11,7 @@ real-time UI rendering in the frontend Triage Console.
 """
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 from . import guardrail_agent, remediation_agent, research_agent, triage_agent
 
@@ -87,7 +87,7 @@ class MultiAgentOrchestrator:
         """
         pipeline_start = time.time()
         pipeline_id = f"cerberus-{int(pipeline_start)}"
-        started_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         steps: list[AgentStep] = []
 
         triage_result = {}

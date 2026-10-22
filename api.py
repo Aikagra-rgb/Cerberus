@@ -6,6 +6,7 @@ import subprocess
 import time
 import uuid
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import (
@@ -68,10 +69,44 @@ PIPELINE_STATUS = Counter(
     "cerberus_pipeline_status_total", "Multi-agent pipeline completion status", ["agent", "status"]
 )
 
+detector = DetectionService()
+_orchestrator = MultiAgentOrchestrator()
+
+
+# ==========================================
+# LIFESPAN & STARTUP / SHUTDOWN EVENTS
+# ==========================================
+async def startup():
+    log.info("cerberus_startup", version="1.0.0")
+    init_db()
+    migrate_legacy_csv(LEGACY_EVIDENCE_FILE)
+    # Update gauges on startup
+    AI_BRAINS_LOADED.set(len(detector.ai_engine.models))
+    blocked_list = list_blocked_ips()
+    BLOCKED_IPS.set(len(blocked_list))
+    log.info(
+        "cerberus_ready", ai_brains=len(detector.ai_engine.models), blocked_ips=len(blocked_list)
+    )
+
+
+async def shutdown():
+    log.info("cerberus_shutdown")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await startup()
+    try:
+        yield
+    finally:
+        await shutdown()
+
+
 app = FastAPI(
     title="Cerberus API",
     version="1.0.0",
     description="Backend API for Cerberus log ingestion, active IPS gatekeeping, and model analytics.",
+    lifespan=lifespan,
 )
 
 # CORS: read from typed settings + keep localhost for dev
@@ -120,10 +155,6 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-detector = DetectionService()
-_orchestrator = MultiAgentOrchestrator()
-
-
 # ==========================================
 # PYDANTIC MODEL SCHEMAS
 # ==========================================
@@ -154,10 +185,31 @@ def _validate_ipv4(ip: str) -> str:
     return ip
 
 
-# Simple in-memory rate limiter for login attempts
+# Simple in-memory rate limiters
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 LOGIN_RATE_LIMIT = 5  # max attempts
 LOGIN_RATE_WINDOW = 300.0  # per 5-minute window
+
+_endpoint_rate_buckets: dict[str, list[float]] = defaultdict(list)
+TRIAGE_RATE_LIMIT = 15  # max multi-agent triage calls
+TRIAGE_RATE_WINDOW = 60.0  # per 60-second window
+INGEST_RATE_LIMIT = 120  # max log ingest requests
+INGEST_RATE_WINDOW = 60.0  # per 60-second window
+
+
+def _enforce_rate_limit(bucket_key: str, max_requests: int, window_seconds: float) -> None:
+    """Enforces a sliding-window rate limit for the given bucket key."""
+    now = time.time()
+    recent = [t for t in _endpoint_rate_buckets[bucket_key] if now - t < window_seconds]
+    if len(recent) >= max_requests:
+        _endpoint_rate_buckets[bucket_key] = recent
+        log.warning("endpoint_rate_limited", bucket=bucket_key, limit=max_requests)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded ({max_requests} requests per {int(window_seconds)}s). Please slow down.",
+        )
+    recent.append(now)
+    _endpoint_rate_buckets[bucket_key] = recent
 
 
 class UnblockIPRequest(BaseModel):
@@ -205,28 +257,6 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
             status_code=status.HTTP_403_FORBIDDEN, detail="Action restricted to Administrator role"
         )
     return user
-
-
-# ==========================================
-# STARTUP / SHUTDOWN EVENTS
-# ==========================================
-@app.on_event("startup")
-async def startup():
-    log.info("cerberus_startup", version="1.0.0")
-    init_db()
-    migrate_legacy_csv(LEGACY_EVIDENCE_FILE)
-    # Update gauges on startup
-    AI_BRAINS_LOADED.set(len(detector.ai_engine.models))
-    blocked_list = list_blocked_ips()
-    BLOCKED_IPS.set(len(blocked_list))
-    log.info(
-        "cerberus_ready", ai_brains=len(detector.ai_engine.models), blocked_ips=len(blocked_list)
-    )
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    log.info("cerberus_shutdown")
 
 
 # ==========================================
@@ -327,6 +357,7 @@ def get_profile(user: dict = Depends(get_current_user)):
 @app.post("/api/logs")
 def ingest_log(payload: LogIngestRequest, user: dict = Depends(require_admin)):
     """Ingests a new log line. Restricted to ADMIN users."""
+    _enforce_rate_limit(f"ingest:{user['username']}", INGEST_RATE_LIMIT, INGEST_RATE_WINDOW)
     log.info("log_ingest_single", source=payload.source, user=user["username"])
     alerts = detector.process_log_line(payload.line, persist=True)
     if alerts:
@@ -338,6 +369,7 @@ def ingest_log(payload: LogIngestRequest, user: dict = Depends(require_admin)):
 @app.post("/api/logs/batch")
 def ingest_logs(payload: BatchLogIngestRequest, user: dict = Depends(require_admin)):
     """Ingests a batch of log lines. Restricted to ADMIN users."""
+    _enforce_rate_limit(f"ingest:{user['username']}", INGEST_RATE_LIMIT, INGEST_RATE_WINDOW)
     log.info(
         "log_ingest_batch",
         source=payload.source,
@@ -537,6 +569,7 @@ def multi_agent_triage(
     Triage (DeepSeek) -> Research (MITRE RAG + DeepSeek) ->
     Remediation (Nemotron) -> Guardrail (DeepSeek) -> Verified Output.
     """
+    _enforce_rate_limit(f"triage:{user['username']}", TRIAGE_RATE_LIMIT, TRIAGE_RATE_WINDOW)
     log.info(
         "pipeline_start",
         threat_type=payload.threat_type,

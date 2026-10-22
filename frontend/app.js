@@ -876,7 +876,7 @@ $("runMultiAgentBtn").addEventListener("click", async () => {
   btn.textContent = "⚡ Running Pipeline...";
   resetPipeline();
 
-  const threat_type = activeTriageAlert["Threat Type"] || "Unknown Threat";
+  const threat_type = activeTriageAlert.Type || activeTriageAlert["Threat Type"] || "Unknown Threat";
   const source_ip   = activeTriageAlert["Source IP"]   || "0.0.0.0";
   const details     = activeTriageAlert["Details"]     || "";
   const log_line    = activeTriageAlert["Log Line"]    || "";

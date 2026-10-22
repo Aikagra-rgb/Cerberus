@@ -48,6 +48,7 @@ class ApiTests(unittest.TestCase):
     def tearDown(self):
         api.detector = self.original_detector
         api.app.dependency_overrides.clear()
+        api._endpoint_rate_buckets.clear()
 
     def mock_admin_user(self):
         return {"username": "testadmin", "role": "ADMIN"}
@@ -173,6 +174,33 @@ class ApiTests(unittest.TestCase):
             self.assertIn("Firewall rule deployed to block 1.2.3.4", payload["message"])
         finally:
             subprocess.run = original_run
+
+    def test_triage_rate_limiting_enforced(self):
+        original_run = api._orchestrator.run
+        api._orchestrator.run = lambda **_kwargs: {
+            "pipeline_id": "test-1",
+            "steps": [],
+            "approved": True,
+            "final_verdict": "APPROVED",
+        }
+        original_limit = api.TRIAGE_RATE_LIMIT
+        api.TRIAGE_RATE_LIMIT = 2
+        try:
+            payload = {
+                "threat_type": "SQL Injection",
+                "source_ip": "203.0.113.10",
+                "details": "UNION SELECT",
+                "log_line": "GET /?id=1 UNION SELECT",
+            }
+            r1 = self.client.post("/api/triage/multi-agent", json=payload)
+            r2 = self.client.post("/api/triage/multi-agent", json=payload)
+            r3 = self.client.post("/api/triage/multi-agent", json=payload)
+            self.assertEqual(r1.status_code, 200)
+            self.assertEqual(r2.status_code, 200)
+            self.assertEqual(r3.status_code, 429)
+        finally:
+            api._orchestrator.run = original_run
+            api.TRIAGE_RATE_LIMIT = original_limit
 
 
 if __name__ == "__main__":

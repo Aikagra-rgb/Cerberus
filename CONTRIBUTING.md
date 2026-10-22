@@ -122,13 +122,13 @@ python trainer.py --type all
 # Terminal 1: Backend
 python -m uvicorn api:app --reload --port 8000
 
-# Terminal 2: Frontend
-cd frontend && node server.mjs
+# Terminal 2: Frontend (or run `docker compose up --build`)
+python serve_frontend.py
 ```
 
 ## Release Process
 
-1. **Version bump** in `pyproject.toml`, `api.py`, and `frontend/package.json`
+1. **Version bump** in `pyproject.toml` and `api.py`
 2. **Update CHANGELOG.md** with release notes
 3. **Create release branch**: `release/vX.Y.Z`
 4. **Run full CI suite** - must pass

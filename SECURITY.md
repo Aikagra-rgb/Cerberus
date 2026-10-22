@@ -23,7 +23,7 @@ Report privately using one of:
 
 1. **GitHub Private Vulnerability Reporting** — open the repository's
    **Security → Report a vulnerability** tab (preferred).
-2. **Email** — `aikagra@example.com` with the subject `[SECURITY] Cerberus`.
+2. **Email** — `guptaaikagra365@gmail.com` with the subject `[SECURITY] Cerberus`.
 
 Include as much of the following as you can:
 

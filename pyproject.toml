@@ -10,10 +10,10 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    {name = "Aikagra", email = "aikagra@example.com"}
+    {name = "Aikagra", email = "guptaaikagra365@gmail.com"}
 ]
 maintainers = [
-    {name = "Aikagra", email = "aikagra@example.com"}
+    {name = "Aikagra", email = "guptaaikagra365@gmail.com"}
 ]
 keywords = [
     "security", "soc", "hids", "ips", "ai", "ml", "devsecops", 

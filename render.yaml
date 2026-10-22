@@ -9,7 +9,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.12.0"
       - key: NEMOTRON_API_KEY
         sync: false          # Set this manually in Render dashboard
       - key: DEEPSEEK_API_KEY
@@ -17,7 +17,9 @@ services:
       - key: NVIDIA_BASE_URL
         value: "https://integrate.api.nvidia.com/v1"
       - key: ALLOWED_ORIGINS
-        value: "https://cerberus-soc.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
+        value: "https://cerberus-soc.vercel.app,https://cerberus-soc-bice.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
+      - key: VERCEL_DOMAINS
+        value: "https://cerberus-soc.vercel.app,https://cerberus-soc-bice.vercel.app"
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD
