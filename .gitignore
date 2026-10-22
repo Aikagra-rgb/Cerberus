@@ -25,8 +25,11 @@ sentinel.db
 *.log
 uvicorn.*
 
-# Node modules
+# Node modules & Vite build artifacts
 node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
 
 # Local configuration / secrets
 ai-claude-ids-key.txt

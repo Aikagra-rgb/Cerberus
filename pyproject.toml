@@ -48,8 +48,6 @@ dependencies = [
     "structlog>=24.0,<25",
     "prometheus-client>=0.19,<1",
     "aiosqlite>=0.20,<1",
-    "streamlit>=1.35,<2",
-    "plotly>=5.20,<6",
 ]
 
 [project.optional-dependencies]
@@ -119,7 +117,6 @@ ignore = [
 "sentinel_engine.py" = ["T201", "W291", "W293"]
 "trainer.py" = ["T201", "N806", "E741", "B905"]
 "attack_simulation_test.py" = ["T201", "S101", "B007"]
-"dashboard.py" = ["W291", "W293", "C408", "T201"]
 "src/ai_triage.py" = ["W293", "F541", "N806"]
 "src/alert_store.py" = ["W293", "N806"]
 "src/detection_service.py" = ["N806"]

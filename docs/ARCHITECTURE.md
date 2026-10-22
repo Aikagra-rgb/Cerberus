@@ -134,7 +134,6 @@ latency and status are exported as Prometheus metrics.
 api.py                     FastAPI application (routes, middleware, auth)
 sentinel_engine.py         Host log monitoring daemon
 trainer.py                 Trains the ML classifiers on CIC-IDS2017 CSVs
-dashboard.py               Streamlit analytics dashboard
 serve_frontend.py          Static frontend server
 src/
   config.py                Paths, unified feature set, model configs
@@ -145,7 +144,7 @@ src/
   ai_triage.py             Triage helpers
   logging_config.py        structlog configuration
   agents/                  Orchestrator, 4 agents, LLM provider, RAG engine
-frontend/                  3D WebGL console (Three.js) + nginx image
+frontend/                  React + Vite + TypeScript SOC SPA (Three.js 3D WebGL + Nginx)
 models/                    Trained classifiers + metrics JSON
 data/                      Signatures, MITRE dataset, sample logs
 docs/                      Architecture, deployment, API, ADRs

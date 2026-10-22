@@ -22,7 +22,3 @@ prometheus-client>=0.19,<1
 
 # Database (async)
 aiosqlite>=0.20,<1
-
-# Dashboard (optional - comment out if not using Streamlit)
-streamlit>=1.35,<2
-plotly>=5.20,<6

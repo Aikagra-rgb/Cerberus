@@ -72,24 +72,13 @@ if ($Task -eq "api") {
 }
 
 # ---------------------------------------------------------
-# TASK: FRONTEND (Starts the modern analyst UI)
+# TASK: FRONTEND (Starts the modern React + Vite analyst UI)
 # ---------------------------------------------------------
-if ($Task -eq "frontend") {
-    Write-Host "`n[Workflow] Starting frontend..." -ForegroundColor Cyan
-    if (Get-Command $Node -ErrorAction SilentlyContinue) {
-        & $Node frontend/server.mjs
-    } else {
-        Write-Host "   [*] Node.js not detected, using Python frontend server..." -ForegroundColor Yellow
-        & $Python frontend/server.py
-    }
-}
-
-# ---------------------------------------------------------
-# TASK: DASHBOARD (Starts the UI)
-# ---------------------------------------------------------
-if ($Task -eq "dashboard") {
-    Write-Host "`n[Workflow] Starting legacy Streamlit dashboard..." -ForegroundColor Cyan
-    streamlit run dashboard.py
+if ($Task -eq "frontend" -or $Task -eq "dashboard") {
+    Write-Host "`n[Workflow] Starting React + Vite SOC Console..." -ForegroundColor Cyan
+    Push-Location frontend
+    npm run dev
+    Pop-Location
 }
 
 # ---------------------------------------------------------
@@ -100,11 +89,8 @@ if ($Task -eq "all") {
 
     Start-Process $Python -ArgumentList "sentinel_engine.py"
     Start-Process $Python -ArgumentList "-m uvicorn api:app --host 127.0.0.1 --port 8000"
-    if (Get-Command $Node -ErrorAction SilentlyContinue) {
-        & $Node frontend/server.mjs
-    } else {
-        Write-Host "   [*] Node.js not detected, using Python frontend server..." -ForegroundColor Yellow
-        & $Python frontend/server.py
-    }
+    Push-Location frontend
+    npm run dev
+    Pop-Location
 }
 
